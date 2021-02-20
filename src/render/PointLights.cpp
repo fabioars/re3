@@ -1,7 +1,6 @@
 #include "common.h"
 
 #include "main.h"
-#include "CutsceneMgr.h"
 #include "Lights.h"
 #include "Camera.h"
 #include "Weather.h"
@@ -13,19 +12,6 @@
 
 int16 CPointLights::NumLights;
 CRegisteredPointLight CPointLights::aLights[NUMPOINTLIGHTS];
-CVector CPointLights::aCachedMapReads[32];
-float CPointLights::aCachedMapReadResults[32];
-int32 CPointLights::NextCachedValue;
-
-void
-CPointLights::Init(void)
-{
-	for(int i = 0; i < ARRAY_SIZE(aCachedMapReads); i++){
-		aCachedMapReads[i] = CVector(0.0f, 0.0f, 0.0f);
-		aCachedMapReadResults[i] = 0.0f;
-	}
-	NextCachedValue = 0;
-}
 
 void
 CPointLights::InitPerFrame(void)
@@ -156,18 +142,11 @@ CPointLights::RenderFogEffect(void)
 	CVector spriteCoors;
 	float spritew, spriteh;
 
-	if(CCutsceneMgr::IsRunning())
-		return;
-
-	PUSH_RENDERGROUP("CPointLights::RenderFogEffect");
-
 	RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)TRUE);
 	RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDONE);
 	RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDONE);
 	RwRenderStateSet(rwRENDERSTATETEXTURERASTER, gpPointlightRaster);
-
-	CSprite::InitSpriteBuffer();
 
 	for(i = 0; i < NumLights; i++){
 		if(aLights[i].fogType != FOG_NORMAL && aLights[i].fogType != FOG_ALWAYS)
@@ -239,10 +218,10 @@ CPointLights::RenderFogEffect(void)
 								// more intensity the closer to line
 								intensity *= 1.0f - sq(Sqrt(linedistsq) / FOG_AREA_WIDTH);
 
-								if(CSprite::CalcScreenCoors(fogcoors, &spriteCoors, &spritew, &spriteh, true)) {
+								if(CSprite::CalcScreenCoors(fogcoors, spriteCoors, &spritew, &spriteh, true)){
 									float rotation = (CTimer::GetTimeInMilliseconds()&0x1FFF) * 2*3.14f / 0x2000;
 									float size = FogSizes[r>>1];
-									CSprite::RenderBufferedOneXLUSprite_Rotate_Aspect(spriteCoors.x, spriteCoors.y, spriteCoors.z,
+									CSprite::RenderOneXLUSprite_Rotate_Aspect(spriteCoors.x, spriteCoors.y, spriteCoors.z,
 										spritew * size, spriteh * size,
 										aLights[i].red * intensity, aLights[i].green * intensity, aLights[i].blue * intensity,
 										intensity, 1/spriteCoors.z, rotation, 255);
@@ -254,8 +233,9 @@ CPointLights::RenderFogEffect(void)
 			}
 
 		}else if(aLights[i].type == LIGHT_POINT || aLights[i].type == LIGHT_FOGONLY || aLights[i].type == LIGHT_FOGONLY_ALWAYS){
-			float groundZ;
-			if(ProcessVerticalLineUsingCache(aLights[i].coors, &groundZ)){
+			if(CWorld::ProcessVerticalLine(aLights[i].coors, aLights[i].coors.z - 20.0f,
+					point, entity, true, false, false, false, true, false, nil)){
+
 				xmin = aLights[i].coors.x - FOG_AREA_RADIUS;
 				ymin = aLights[i].coors.y - FOG_AREA_RADIUS;
 				xmax = aLights[i].coors.x + FOG_AREA_RADIUS;
@@ -286,11 +266,11 @@ CPointLights::RenderFogEffect(void)
 								// more intensity the closer to light source
 								intensity *= 1.0f - sq(lightdist / FOG_AREA_RADIUS);
 
-								CVector fogcoors(xi, yi, groundZ + 1.6f);
-								if(CSprite::CalcScreenCoors(fogcoors, &spriteCoors, &spritew, &spriteh, true)) {
+								CVector fogcoors(xi, yi, point.point.z + 1.6f);
+								if(CSprite::CalcScreenCoors(fogcoors, spriteCoors, &spritew, &spriteh, true)){
 									float rotation = (CTimer::GetTimeInMilliseconds()&0x3FFF) * 2*3.14f / 0x4000;
 									float size = FogSizes[r>>1];
-									CSprite::RenderBufferedOneXLUSprite_Rotate_Aspect(spriteCoors.x, spriteCoors.y, spriteCoors.z,
+									CSprite::RenderOneXLUSprite_Rotate_Aspect(spriteCoors.x, spriteCoors.y, spriteCoors.z,
 										spritew * size, spriteh * size,
 										aLights[i].red * intensity, aLights[i].green * intensity, aLights[i].blue * intensity,
 										intensity, 1/spriteCoors.z, rotation, 255);
@@ -302,29 +282,4 @@ CPointLights::RenderFogEffect(void)
 			}
 		}
 	}
-
-	CSprite::FlushSpriteBuffer();
-
-	POP_RENDERGROUP();
-}
-
-bool
-CPointLights::ProcessVerticalLineUsingCache(CVector coors, float *groundZ)
-{
-	for(int i = 0; i < ARRAY_SIZE(aCachedMapReads); i++)
-		if(aCachedMapReads[i] == coors){
-			*groundZ = aCachedMapReadResults[i];
-			return true;
-		}
-
-	CColPoint point;
-	CEntity *entity;
-	if(CWorld::ProcessVerticalLine(coors, coors.z - 20.0f, point, entity, true, false, false, false, true, false, nil)){
-		aCachedMapReads[NextCachedValue] = coors;
-		aCachedMapReadResults[NextCachedValue] = point.point.z;
-		NextCachedValue = (NextCachedValue+1) % ARRAY_SIZE(aCachedMapReads);
-		*groundZ = point.point.z;
-		return true;
-	}
-	return false;
 }

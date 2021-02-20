@@ -9,15 +9,16 @@ CAnimBlendSequence::CAnimBlendSequence(void)
 	numFrames = 0;
 	keyFrames = nil;
 	keyFramesCompressed = nil;
+#ifdef PED_SKIN
 	boneTag = -1;
+#endif
 }
 
 CAnimBlendSequence::~CAnimBlendSequence(void)
 {
+	assert(keyFramesCompressed == nil);
 	if(keyFrames)
 		RwFree(keyFrames);
-	if(keyFramesCompressed)
-		RwFree(keyFramesCompressed);
 }
 
 void
@@ -27,21 +28,18 @@ CAnimBlendSequence::SetName(char *name)
 }
 
 void
-CAnimBlendSequence::SetNumFrames(int numFrames, bool translation, bool compressed)
+CAnimBlendSequence::SetNumFrames(int numFrames, bool translation)
 {
+	int sz;
+
 	if(translation){
+		sz = sizeof(KeyFrameTrans);
 		type |= KF_ROT | KF_TRANS;
-		if(compressed)
-			keyFramesCompressed = RwMalloc(sizeof(KeyFrameTrans) * numFrames);
-		else
-			keyFrames = RwMalloc(sizeof(KeyFrameTrans) * numFrames);
 	}else{
+		sz = sizeof(KeyFrame);
 		type |= KF_ROT;
-		if(compressed)
-			keyFramesCompressed = RwMalloc(sizeof(KeyFrame) * numFrames);
-		else
-			keyFrames = RwMalloc(sizeof(KeyFrame) * numFrames);
 	}
+	keyFrames = RwMalloc(sz * numFrames);
 	this->numFrames = numFrames;
 }
 
@@ -77,7 +75,7 @@ CAnimBlendSequence::Uncompress(void)
 
 	float rotScale = 1.0f/4096.0f;
 	float timeScale = 1.0f/60.0f;
-	float transScale = 1.0f/1024.0f;
+	float transScale = 1.0f/128.0f;
 	if(type & KF_TRANS){
 		void *newKfs = RwMalloc(numFrames * sizeof(KeyFrameTrans));
 		KeyFrameTransCompressed *ckf = (KeyFrameTransCompressed*)keyFramesCompressed;
@@ -130,7 +128,7 @@ CAnimBlendSequence::CompressKeyframes(void)
 
 	float rotScale = 4096.0f;
 	float timeScale = 60.0f;
-	float transScale = 1024.0f;
+	float transScale = 128.0f;
 	if(type & KF_TRANS){
 		void *newKfs = RwMalloc(numFrames * sizeof(KeyFrameTransCompressed));
 		KeyFrameTransCompressed *ckf = (KeyFrameTransCompressed*)newKfs;
@@ -178,23 +176,3 @@ CAnimBlendSequence::RemoveUncompressedData(void)
 	keyFrames = nil;
 }
 
-#ifdef USE_CUSTOM_ALLOCATOR
-bool
-CAnimBlendSequence::MoveMemory(void)
-{
-	if(keyFrames){
-		void *newaddr = gMainHeap.MoveMemory(keyFrames);
-		if(newaddr != keyFrames){
-			keyFrames = newaddr;
-			return true;
-		}
-	}else if(keyFramesCompressed){
-		void *newaddr = gMainHeap.MoveMemory(keyFramesCompressed);
-		if(newaddr != keyFramesCompressed){
-			keyFramesCompressed = newaddr;
-			return true;
-		}
-	}
-	return false;
-}
-#endif

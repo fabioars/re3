@@ -10,20 +10,14 @@ float G_aComponentDamage[] = { 2.5f, 1.25f, 3.2f, 1.4f, 2.5f, 2.8f, 0.5f };
 CDamageManager::CDamageManager(void)
 {
 	ResetDamageStatus();
-	m_fWheelDamageEffect = 0.5f;
+	m_fWheelDamageEffect = 0.75f;
 	field_18 = 1;
 }
 
 void
 CDamageManager::ResetDamageStatus(void)
 {
-	int i;
-	m_fWheelDamageEffect = 0.0f;
-	m_engineStatus = 0;
-	for(i = 0; i < ARRAY_SIZE(m_wheelStatus); i++) m_wheelStatus[i] = 0;
-	for(i = 0; i < ARRAY_SIZE(m_doorStatus); i++) m_doorStatus[i] = 0;
-	m_lightStatus = 0;
-	m_panelStatus = 0;
+	memset(this, 0, sizeof(*this));
 }
 
 void
@@ -63,8 +57,6 @@ CDamageManager::ApplyDamage(tComponent component, float damage, float unused)
 
 	GetComponentGroup(component, &group, &subComp);
 	damage *= G_aComponentDamage[group];
-	if(component == COMPONENT_PANEL_WINDSCREEN)
-		damage *= 0.6f;
 	if(damage > 150.0f){
 		switch(group){
 		case COMPGROUP_WHEEL:
@@ -228,6 +220,10 @@ CDamageManager::GetEngineStatus(void)
 bool
 CDamageManager::ProgressEngineDamage(void)
 {
-	// gone in VC
-	return false;
+	int status = GetEngineStatus();
+	int newstatus = status + 32 + (CGeneral::GetRandomNumber() & 0x1F);
+	if(status < ENGINE_STATUS_ON_FIRE && newstatus > ENGINE_STATUS_ON_FIRE-1)
+		newstatus = ENGINE_STATUS_ON_FIRE-1;
+	SetEngineStatus(newstatus);
+	return true;
 }

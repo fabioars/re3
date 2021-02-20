@@ -6,7 +6,6 @@
 #ifdef BUTTON_ICONS
 #include "FileMgr.h"
 #endif
-#include "Timer.h"
 
 void
 AsciiToUnicode(const char *src, wchar *dst)
@@ -34,216 +33,164 @@ UnicodeStrlen(const wchar *str)
 	return len;
 }
 
-void
-UnicodeMakeUpperCase(wchar *dst, const wchar *src) //idk what to do with it, seems to be incorrect implementation by R*
-{
-	while (*src != '\0') {
-		if (*src < 'a' || *src > 'z')
-			*dst = *src;
-		else
-			*dst = *src - 32;
-		dst++;
-		src++;
-	}
-	*dst = '\0';
-}
-
 CFontDetails CFont::Details;
 int16 CFont::NewLine;
 CSprite2d CFont::Sprite[MAX_FONTS];
-CFontRenderState CFont::RenderState;
 
 #ifdef MORE_LANGUAGES
 uint8 CFont::LanguageSet = FONT_LANGSET_EFIGS;
 int32 CFont::Slot = -1;
 #define JAP_TERMINATION (0x8000 | '~')
 
-int16 CFont::Size[LANGSET_MAX][MAX_FONTS][210] = {
+int16 CFont::Size[LANGSET_MAX][MAX_FONTS][193] = {
 	{
 #else
-int16 CFont::Size[MAX_FONTS][210] = {
+int16 CFont::Size[MAX_FONTS][193] = {
 #endif
-	{
-		//FONT2 EFIGS
-		//SPC,!,         $,  %,  &,  ',  [,  ],      +,  ,   -,  .,    
-		12, 9,  22, 17, 19, 19, 25, 4,  33, 33, 25, 35, 11, 10,  6, 33,
-		//0, 1,  2,  3,  4,  5,  6,  7,  8,  9,  :,                 ??,
-		18, 10, 17, 17, 17, 17, 17, 15, 12, 16,  5, 30, 30, 30, 30, 30,
-		//   A,  B,  C,  D,  E,  F,  G,  H,  I,  J,  K,  L,  M,  N,  O,
-		12, 16, 19, 16, 19, 18, 18, 17, 22, 11, 17, 18, 18, 30, 22, 19,
-		//P, Q,  R,  S,  T,  U,  V,  W,  X,  Y,  Z, ??, ??, ??,  ¡,  \,
-		#ifdef FIX_BUGS
-		22, 19, 19, 20, 18, 19, 19, 29, 19, 18, 19, 19, 33, 33, 10, 19,
-		#else
-		22, 19, 19, 20, 18, 19, 19, 29, 19, 18, 19, 19, 33, 33, 19, 19,
-		#endif
-		//??,a,  b,  c,  d,  e,  f,  g,  h,  i,  j,  k,  l,  m,  n,  o,
-		12, 14, 11, 11, 16, 11, 12, 14, 14, 10, 13, 12, 10, 19, 18, 12,
-		//p, q,  r,  s,  t,  u,  v,  w,  x,  y,  z, ??, ??, ??, ??, ??,
-		16, 13, 13, 11, 12, 15, 12, 15, 13, 12, 12, 37, 33, 37, 35, 37,
-		//À, Á,  Â,  Ä,  Æ,  Ç,  È,  É,  Ê,  Ë,  Ì,  Í,  Î,  Ï,  Ò,  Ó,
-		16, 16, 16, 16, 33, 17, 18, 18, 18, 18, 11, 11, 11, 11, 19, 19,
-		//Ô, Ö,  Ù,  Ú,  Û,  Ü,  ß,  à,  á,  â,  ä,  æ,  ç,  è,  é,  ê,
-		19, 19, 19, 19, 19, 19, 15, 14, 14, 14, 14, 20, 14, 11, 11, 11,
-		//ë, ì,  í,  î,  ï,  ò,  ó,  ô,  ö,  ù,  ú,  û,  ü,  Ñ,  ñ,  ¿,
-		#ifdef FIX_BUGS
-		11, 10, 10, 10, 10, 12, 12, 12, 12, 15, 15, 15, 15, 22, 18, 21,
-		#else
-		11, 10, 10, 10, 10, 12, 12, 12, 12, 15, 15, 15, 15, 24, 18, 21,
-		#endif
-		//i,BLANKS
-		10, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-		//space, unprop
-		19, 16
-	},
-	{
-		//FONT1 EFIGS
-		//Characters with a '2' refer to the Pricedown font.
-		//Characters that are referred as '*I' are characters that contain icons for PS2/XBOX, but contain regular characters on PC
-		//in order to display them properly in the Keyboard controls menu.
-		//!2,!, *I,(R),  $,  %,  &,  ',  [,  ], *I,  +,  ,   -,  ., *I,
-		15,  7, 31, 25, 20, 23, 21,  7, 11, 10, 26, 14,  6, 12,  6, 26,
-		//0, 1,  2,  3,  4,  5,  6,  7,  8,  9,  :, *I, *I, *I, *I,  ?,
-		20,  7, 20, 20, 21, 20, 20, 19, 21, 20,  8, 30, 24, 30, 24, 19,
-		//TM,A,  B,  C,  D,  E,  F,  G,  H,  I,  J,  K,  L,  M,  N,  O,
-		20, 22, 22, 21, 22, 18, 18, 22, 22,  9, 14, 21, 18, 27, 21, 24,
-		//P, Q,  R,  S,  T,  U,  V,  W,  X,  Y,  Z, *I,  \, *I,  ¡,  °,
-		#ifdef FIX_BUGS
-		22, 22, 23, 20, 19, 23, 22, 31, 23, 23, 21, 25, 13, 30,  7, 19,
-		#else
-		22, 22, 23, 20, 19, 23, 22, 31, 23, 23, 21, 25, 13, 30, 10, 19,
-		#endif
-		//(C),a, b,  c,  d,  e,  f,  g,  h,  i,  j,  k,  l,  m,  n,  o,
-		10, 17, 17, 16, 17, 17, 11, 17, 17,  7,  7, 18,  7, 25, 17, 17,
-		//p, q,  r,  s,  t,  u,  v,  w,  x,  y,  z, *I, *I, $2, (2, )2,
-		17, 17, 11, 17, 11, 17, 18, 25, 19, 18, 17, 28, 26, 20, 15, 15,
-		//À, Á,  Â,  Ä,  Æ,  Ç,  È,  É,  Ê,  Ë,  Ì,  Í,  Î,  Ï,  Ò,  Ó,
-		20, 20, 20, 20, 29, 22, 19, 19, 19, 19,  9,  9,  9,  9, 23, 23,
-		//Ô, Ö,  Ù,  Ú,  Û,  Ü,  ß,  à,  á,  â,  ä,  æ,  ç,  è,  é,  ê,
-		23, 23, 24, 24, 24, 24, 20, 19, 17, 17, 17, 30, 16, 17, 17, 17,
-		//ë, ì,  í,  î,  ï,  ò,  ó,  ô,  ö,  ù,  ú,  û,  ü,  Ñ,  ñ,  ¿,
-		#ifdef FIX_BUGS
-		17, 11, 11, 15, 12, 17, 17, 17, 17, 17, 17, 17, 17, 21, 17, 19,
-		#else
-		17, 11, 11, 15, 12, 17, 17, 17, 17, 17, 17, 17, 17, 19, 20, 20,
-		#endif
-		//02,12,22, 32, 42, 52, 62, 72, 82, 92, :2, A2, B2, C2, D2, E2,
-		20, 18, 19, 19, 21, 19, 19, 19, 19, 19, 16, 19, 19, 19, 20, 19,
-		//F2,G2,H2, I2, J2, K2, L2, M2, N2, O2, P2, Q2, R2, S2, T2, U2,
-		16, 19, 19,  9, 19, 20, 14, 29, 19, 19, 19, 19, 19, 19, 21, 19,
-		//V2,W2,X2, Y2, Z2, À2, Á2, Â2, Ä2, Æ2, Ç2, È2, É2, Ê2, Ë2, Ì2,
-		20, 32, 20, 19, 19, 19, 19, 19, 19, 29, 19, 19, 19, 19, 19,  9,
-		//Í2,Î2,Ï2, Ò2, Ó2, Ô2, Ö2, Ù2, Ú2, Û2, Ü2, ß2, Ñ2, ¿2, '2, .2,
-		#ifdef FIX_BUGS
-		 9,  9,  9, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 10,  9,
-		#else
-		 9,  9,  9, 19, 19, 19, 19, 19, 19, 19, 19, 19, 21, 21, 10,  9,
-		#endif
-		//space, unprop
-		10, 20
-	}
+		{
+		13, 12, 31, 35, 23, 35, 31,  9, 14, 15, 25, 30, 11, 17, 13, 31,
+		23, 16, 22, 21, 24, 23, 23, 20, 23, 22, 10, 35, 26, 26, 26, 26,
+		30, 26, 24, 23, 24, 22, 21, 24, 26, 10, 20, 26, 22, 29, 26, 25,
+		23, 25, 24, 24, 22, 25, 24, 29, 29, 23, 25, 37, 22, 37, 35, 37,
+		35, 21, 22, 21, 21, 22, 13, 22, 21, 10, 16, 22, 11, 32, 21, 21,
+		23, 22, 16, 20, 14, 21, 20, 30, 25, 21, 21, 33, 33, 33, 33, 35,
+		27, 27, 27, 27, 32, 24, 23, 23, 23, 23, 11, 11, 11, 11, 26, 26,
+		26, 26, 26, 26, 26, 25, 26, 21, 21, 21, 21, 32, 23, 22, 22, 22,
+		22, 11, 11, 11, 11, 22, 22, 22, 22, 22, 22, 22, 22, 26, 21, 24,
+		12, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+		26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 18, 26, 26,
+		26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+		20
+		},
 
+		{
+		13,  9, 21, 35, 23, 35, 35, 11, 35, 35, 25, 35, 11, 17, 13, 33,
+		28, 14, 22, 21, 24, 23, 23, 21, 23, 22, 10, 35, 13, 35, 13, 33,
+		 5, 25, 22, 23, 24, 21, 21, 24, 24,  9, 20, 24, 21, 27, 25, 25,
+		22, 25, 23, 20, 23, 23, 23, 31, 23, 23, 23, 37, 33, 37, 35, 37,
+		35, 21, 19, 19, 21, 19, 17, 21, 21,  8, 17, 18, 14, 24, 21, 21,
+		20, 22, 19, 20, 20, 19, 20, 26, 21, 20, 21, 33, 33, 33, 33, 35,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		16
+		},
+
+		{
+		15, 14, 16, 25, 19, 26, 22, 11, 18, 18, 27, 26, 13, 19,  9, 27,
+		19, 18, 19, 19, 22, 19, 20, 18, 19, 20, 12, 32, 15, 32, 15, 35,
+		15, 19, 19, 19, 19, 19, 16, 19, 20,  9, 19, 20, 14, 29, 19, 20,
+		19, 19, 19, 19, 21, 19, 20, 32, 20, 19, 19, 33, 31, 39, 37, 39,
+		37, 21, 21, 21, 23, 21, 19, 23, 23, 10, 19, 20, 16, 26, 23, 23,
+		20, 20, 20, 22, 21, 22, 22, 26, 22, 22, 23, 35, 35, 35, 35, 37,
+		19, 19, 19, 19, 29, 19, 19, 19, 19, 19,  9,  9,  9,  9, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 30, 19, 19, 19, 19,
+		19, 10, 10, 10, 10, 19, 19, 19, 19, 19, 19, 19, 19, 19, 23, 35,
+		12, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 11, 19, 19,
+		19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+		19
+		}
 #ifdef MORE_LANGUAGES
 	},
 	{
-        {
-			5,  9,  9,  0,  17, 17, 23, 3,  21, 18, 0,  8,  3,  8,  3,  0,
-			16, 9,  16, 16, 15, 19, 15, 14, 17, 17, 4,  4,  0,  0,  0,  17,
-			19, 17, 19, 15, 21, 18, 19, 16, 21, 13, 15, 21, 20, 28, 21, 18,
-			22, 17, 21, 20, 18, 18, 20, 26, 22, 18, 18, 0,  8,  0,  9,  8,
-			0,  14, 11, 12, 16, 11, 13, 13, 15, 10, 14, 15, 11, 21, 17, 10,
-			20, 15, 12, 12, 16, 17, 13, 16, 13, 21, 11, 0,  0,  0,  0,  0, 
-			20, 19, 19, 22, 27, 15, 18, 18, 20, 26, 21, 23, 17, 22, 21, 17,
-			26, 25, 26, 17, 20, 26, 17, 16, 11, 12, 13, 21, 11, 17, 17, 12,
-			21, 17, 17, 15, 24, 16, 10, 20, 23, 16, 7,  9,  16, 23, 12, 11,
-			0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-			0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-			0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-			0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  19,
-			19, 16
-		},
-        {
-			11, 5,  10, 15, 19, 22, 20, 5,  9,  8,  11, 12, 5,  12, 6,  12,
-			19, 5,  18, 19, 20, 18, 19, 18, 20, 19, 5,  6,  26, 12, 30, 19,
-			23, 21, 20, 20, 20, 16, 16, 21, 19, 5,  13, 19, 16, 24, 20, 21,
-			20, 21, 20, 19, 17, 20, 21, 30, 22, 21, 20, 25, 13, 30,  5,  9,
-			10, 15, 15, 14, 15, 16, 10, 15, 15, 5,  5,  15, 5,  23, 15, 16,
-			15, 15, 9,  16, 10, 15, 17, 24, 18, 15, 15, 27, 5,  19, 2,  2, 
-			20, 20, 16, 23, 30, 19, 20, 20, 21, 24, 19, 19, 20, 23, 22, 19,
-			27, 29, 25, 20, 20, 28, 24, 16, 16, 14, 19, 25, 16, 16, 16, 17,
-			19, 16, 16, 17, 25, 19, 15, 23, 26, 21, 16, 14, 22, 20, 16, 19,
-			15, 14, 15, 16, 17, 15, 15, 15, 15, 15, 7,  15, 15, 15, 15, 15,
-			13, 15, 15, 7,  15, 16, 13, 23, 15, 15, 15, 15, 15, 15, 17, 15,
-			16, 24, 17, 17, 17, 15, 15, 13, 20, 23, 15, 17, 17, 16, 24, 15,
-			15, 15, 23, 18, 15, 23, 26, 23, 16, 15, 23, 15, 15, 19, 2,  2,
-			10, 20
-		},
-	},	
+		{ 13, 12, 31, 35, 23, 35, 31, 9, 14, 15, 25, 30, 11, 17,
+			13, 31, 23, 16, 22, 21, 24, 23, 23, 20, 23, 22, 10,
+			35, 26, 26, 26, 26, 30, 26, 24, 23, 24, 22, 21, 24,
+			26, 10, 20, 26, 22, 29, 26, 25, 23, 25, 24, 24, 22,
+			25, 24, 29, 29, 23, 25, 37, 22, 37, 35, 37, 35, 21,
+			22, 21, 21, 22, 13, 22, 21, 10, 16, 22, 11, 32, 21,
+			21, 23, 22, 16, 20, 14, 21, 20, 30, 25, 21, 21, 13,
+			33, 13, 13, 13, 24, 22, 22, 19, 26, 21, 30, 20, 23,
+			23, 21, 24, 26, 23, 22, 23, 21, 22, 20, 20, 26, 25,
+			24, 22, 31, 32, 23, 30, 22, 22, 32, 23, 19, 18, 18,
+			15, 22, 19, 27, 19, 20, 20, 18, 22, 24, 20, 19, 19,
+			20, 19, 16, 19, 28, 20, 20, 18, 26, 27, 19, 26, 18,
+			19, 27, 19, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+			26, 26, 26, 18, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+			26, 26, 26, 26, 26, 26, 26, 26, 26, 20 },
+		{ 13, 9, 21, 35, 23, 35, 35, 11, 35, 35, 25, 35, 11,
+			17, 13, 33, 28, 14, 22, 21, 24, 23, 23, 21, 23, 22,
+			10, 35, 13, 35, 13, 33, 5, 25, 22, 23, 24, 21, 21, 24,
+			24, 9, 20, 24, 21, 27, 25, 25, 22, 25, 23, 20, 23, 23,
+			23, 31, 23, 23, 23, 37, 33, 37, 35, 37, 35, 21, 19,
+			19, 21, 19, 17, 21, 21, 8, 17, 18, 14, 24, 21, 21, 20,
+			22, 19, 20, 20, 19, 20, 26, 21, 20, 21, 33, 33, 33,
+			33, 35, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 16, },
+		{ 15, 14, 16, 25, 19,
+			26, 22, 11, 18, 18, 27, 26, 13, 19, 9, 27, 19, 18, 19,
+			19, 22, 19, 20, 18, 19, 20, 12, 32, 15, 32, 15, 35,
+			15, 19, 19, 19, 19, 19, 16, 19, 20, 9, 19, 20, 14, 29,
+			19, 20, 19, 19, 19, 19, 21, 19, 20, 32, 20, 19, 19,
+			33, 31, 39, 37, 39, 37, 21, 21, 21, 23, 21, 19, 23, 23, 10, 19, 20, 16, 26, 23,
+			21, 21, 20, 20, 22, 21, 22, 22, 26, 22, 22, 23, 35,
+			35, 35, 35, 37, 19, 19, 19, 19, 19, 19, 29, 19, 19,
+			19, 20, 22, 31, 19, 19, 19, 19, 19, 29, 19, 29, 19,
+			21, 19, 30, 31, 21, 29, 19, 19, 29, 19, 21, 23, 32,
+			21, 21, 30, 31, 22, 21, 32, 33, 23, 32, 21, 21, 32,
+			21, 19, 19, 30, 31, 22, 22, 21, 32, 33, 23, 32, 21,
+			21, 32, 21, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 11, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19 },
+	},
+
 	{
 		{
-			//FONT2 EFIGS
-			//SPC,!,         $,  %,  &,  ',  [,  ],      +,  ,   -,  .,    
-			12, 9,  22, 17, 19, 19, 25, 4,  33, 33, 25, 35, 11, 10,  6, 33,
-			//0, 1,  2,  3,  4,  5,  6,  7,  8,  9,  :,                 ??,
-			18, 10, 17, 17, 17, 17, 17, 15, 12, 16,  5, 30, 30, 30, 30, 30,
-			//   A,  B,  C,  D,  E,  F,  G,  H,  I,  J,  K,  L,  M,  N,  O,
-			12, 16, 19, 16, 19, 18, 18, 17, 22, 11, 17, 18, 18, 30, 22, 19,
-			//P, Q,  R,  S,  T,  U,  V,  W,  X,  Y,  Z, ??, ??, ??,  ¡,  \,
-			22, 19, 19, 20, 18, 19, 19, 29, 19, 18, 19, 19, 33, 33, 10, 19,
-			//??,a,  b,  c,  d,  e,  f,  g,  h,  i,  j,  k,  l,  m,  n,  o,
-			12, 14, 11, 11, 16, 11, 12, 14, 14, 10, 13, 12, 10, 19, 18, 12,
-			//p, q,  r,  s,  t,  u,  v,  w,  x,  y,  z, ??, ??, ??, ??, ??,
-			16, 13, 13, 11, 12, 15, 12, 15, 13, 12, 12, 37, 33, 37, 35, 37,
-			//À, Á,  Â,  Ä,  Æ,  Ç,  È,  É,  Ê,  Ë,  Ì,  Í,  Î,  Ï,  Ò,  Ó,
-			16, 16, 16, 16, 33, 17, 18, 18, 18, 18, 11, 11, 11, 11, 19, 19,
-			//Ô, Ö,  Ù,  Ú,  Û,  Ü,  ß,  à,  á,  â,  ä,  æ,  ç,  è,  é,  ê,
-			19, 19, 19, 19, 19, 19, 15, 14, 14, 14, 14, 20, 14, 11, 11, 11,
-			//ë, ì,  í,  î,  ï,  ò,  ó,  ô,  ö,  ù,  ú,  û,  ü,  Ñ,  ñ,  ¿,
-			11, 10, 10, 10, 10, 12, 12, 12, 12, 15, 15, 15, 15, 22, 18, 21,
-			//i,BLANKS
-			10, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-			//space, unprop
-			19, 16
+			13, 12, 31, 35, 23, 35, 31, 9, 14, 15, 25, 30, 11, 17, 13, 31,
+				23, 16, 22, 21, 24, 23, 23, 20, 23, 22, 10, 35, 26, 26, 26, 26,
+				30, 26, 24, 23, 24, 22, 21, 24, 26, 10, 20, 26, 22, 29, 26, 25,
+				23, 25, 24, 24, 22, 25, 24, 29, 29, 23, 25, 37, 22, 37, 35, 37,
+				35, 21, 22, 21, 21, 22, 13, 22, 21, 10, 16, 22, 11, 32, 21, 21,
+				23, 22, 16, 20, 14, 21, 20, 30, 25, 21, 21, 33, 33, 33, 33, 35,
+				27, 27, 27, 27, 32, 24, 23, 23, 23, 23, 11, 11, 11, 11, 26, 26,
+				26, 26, 26, 26, 26, 25, 26, 21, 21, 21, 21, 32, 23, 22, 22, 22,
+				22, 11, 11, 11, 11, 22, 22, 22, 22, 22, 22, 22, 22, 26, 21, 24,
+				12, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+				26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 18, 26, 26,
+				26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
+				20
 		},
+
 		{
-			//FONT1 EFIGS
-			//Characters with a '2' refer to the Pricedown font.
-			//Characters that are referred as '*I' are characters that contain icons for PS2/XBOX, but contain regular characters on PC
-			//in order to display them properly in the Keyboard controls menu.
-			//!2,!, *I,(R),  $,  %,  &,  ',  [,  ], *I,  +,  ,   -,  ., *I,
-			15,  7, 31, 25, 20, 23, 21,  7, 11, 10, 26, 14,  6, 12,  6, 26,
-			//0, 1,  2,  3,  4,  5,  6,  7,  8,  9,  :, *I, *I, *I, *I,  ?,
-			20,  7, 20, 20, 21, 20, 20, 19, 21, 20,  8, 30, 24, 30, 24, 19,
-			//TM,A,  B,  C,  D,  E,  F,  G,  H,  I,  J,  K,  L,  M,  N,  O,
-			20, 22, 22, 21, 22, 18, 18, 22, 22,  9, 14, 21, 18, 27, 21, 24,
-			//P, Q,  R,  S,  T,  U,  V,  W,  X,  Y,  Z, *I,  \, *I,  ¡,  °,
-			22, 22, 23, 20, 19, 23, 22, 31, 23, 23, 21, 25, 13, 30,  7, 19,
-			//(C),a, b,  c,  d,  e,  f,  g,  h,  i,  j,  k,  l,  m,  n,  o,
-			10, 17, 17, 16, 17, 17, 11, 17, 17,  7,  7, 18,  7, 25, 17, 17,
-			//p, q,  r,  s,  t,  u,  v,  w,  x,  y,  z, *I, *I, $2, (2, )2,
-			17, 17, 11, 17, 11, 17, 18, 25, 19, 18, 17, 28, 26, 20, 15, 15,
-			//À, Á,  Â,  Ä,  Æ,  Ç,  È,  É,  Ê,  Ë,  Ì,  Í,  Î,  Ï,  Ò,  Ó,
-			20, 20, 20, 20, 29, 22, 19, 19, 19, 19,  9,  9,  9,  9, 23, 23,
-			//Ô, Ö,  Ù,  Ú,  Û,  Ü,  ß,  à,  á,  â,  ä,  æ,  ç,  è,  é,  ê,
-			23, 23, 24, 24, 24, 24, 20, 19, 17, 17, 17, 30, 16, 17, 17, 17,
-			//ë, ì,  í,  î,  ï,  ò,  ó,  ô,  ö,  ù,  ú,  û,  ü,  Ñ,  ñ,  ¿,
-			17, 11, 11, 15, 12, 17, 17, 17, 17, 17, 17, 17, 17, 21, 17, 19,
-			//02,12,22, 32, 42, 52, 62, 72, 82, 92, :2, A2, B2, C2, D2, E2,
-			20, 18, 19, 19, 21, 19, 19, 19, 19, 19, 16, 19, 19, 19, 20, 19,
-			//F2,G2,H2, I2, J2, K2, L2, M2, N2, O2, P2, Q2, R2, S2, T2, U2,
-			16, 19, 19,  9, 19, 20, 14, 29, 19, 19, 19, 19, 19, 19, 21, 19,
-			//V2,W2,X2, Y2, Z2, À2, Á2, Â2, Ä2, Æ2, Ç2, È2, É2, Ê2, Ë2, Ì2,
-			20, 32, 20, 19, 19, 19, 19, 19, 19, 29, 19, 19, 19, 19, 19,  9,
-			//Í2,Î2,Ï2, Ò2, Ó2, Ô2, Ö2, Ù2, Ú2, Û2, Ü2, ß2, Ñ2, ¿2, '2, .2,
-			 9,  9,  9, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 10,  9,
-			//space, unprop
-			10, 20
+			13,  9, 21, 35, 23, 35, 35, 11, 35, 35, 25, 35, 11, 17, 13, 33,
+			28, 14, 22, 21, 24, 23, 23, 21, 23, 22, 10, 35, 13, 35, 13, 33,
+			5, 25, 22, 23, 24, 21, 21, 24, 24,  9, 20, 24, 21, 27, 25, 25,
+			22, 25, 23, 20, 23, 23, 23, 31, 23, 23, 23, 37, 33, 37, 35, 37,
+			35, 21, 19, 19, 21, 19, 17, 21, 21,  8, 17, 18, 14, 24, 21, 21,
+			20, 22, 19, 20, 20, 19, 20, 26, 21, 20, 21, 33, 33, 33, 33, 35,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			16
+		},
+
+		{
+			15, 14, 16, 25, 19, 26, 22, 11, 18, 18, 27, 26, 13, 19,  9, 27,
+			19, 18, 19, 19, 22, 19, 20, 18, 19, 20, 12, 32, 15, 32, 15, 35,
+			15, 19, 19, 19, 19, 19, 16, 19, 20,  9, 19, 20, 14, 29, 19, 20,
+			19, 19, 19, 19, 21, 19, 20, 32, 20, 19, 19, 33, 31, 39, 37, 39,
+			37, 21, 21, 21, 23, 21, 19, 23, 23, 10, 19, 20, 16, 26, 23, 23,
+			20, 20, 20, 22, 21, 22, 22, 26, 22, 22, 23, 35, 35, 35, 35, 37,
+			19, 19, 19, 19, 29, 19, 19, 19, 19, 19,  9,  9,  9,  9, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 30, 19, 19, 19, 19,
+			19, 10, 10, 10, 10, 19, 19, 19, 19, 19, 19, 19, 19, 19, 23, 35,
+			12, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 11, 19, 19,
+			19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+			19
 		}
 	}
 #endif
@@ -279,21 +226,6 @@ wchar foreign_table[128] = {
 	151, 152, 153,   0, 154,   0, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164,
 	  0, 174, 165, 166, 167,   0, 168,   0,   0, 169, 170, 171, 172,   0,   0,   0,
 };
-
-union tFontRenderStatePointer
-{
-	CFontRenderState *pRenderState;
-	wchar *pStr;
-
-	void Align()
-	{
-		if ((uintptr)pStr % 4)
-			pStr++;
-	}
-};
-
-tFontRenderStatePointer FontRenderStatePointer;
-uint8 FontRenderStateBuf[1024];
 
 #ifdef BUTTON_ICONS
 CSprite2d CFont::ButtonSprite[MAX_BUTTON_ICONS];
@@ -331,24 +263,26 @@ CFont::Initialise(void)
 	CTxdStore::AddRef(slot);
 	CTxdStore::PushCurrentTxd();
 	CTxdStore::SetCurrentTxd(slot);
-	Sprite[0].SetTexture("font2", "font2m");
+	Sprite[0].SetTexture("font2", "font2_mask");
 #ifdef MORE_LANGUAGES
 	if (IsJapanese()) {
 		Sprite[1].SetTexture("FONTJAP", "FONTJAP_mask");
 		Sprite[3].SetTexture("FONTJAP", "FONTJAP_mask");
 	}
+	else
 #endif // MORE_LANGUAGES
-	Sprite[1].SetTexture("font1", "font1m");
+		Sprite[1].SetTexture("pager", "pager_mask");
+	Sprite[2].SetTexture("font1", "font1_mask");
 	SetScale(1.0f, 1.0f);
 	SetSlantRefPoint(SCREEN_WIDTH, 0.0f);
 	SetSlant(0.0f);
-	SetColor(CRGBA(255, 255, 255, 0));
+	SetColor(CRGBA(0xFF, 0xFF, 0xFF, 0));
 	SetJustifyOff();
 	SetCentreOff();
 	SetWrapx(SCREEN_WIDTH);
 	SetCentreSize(SCREEN_WIDTH);
 	SetBackgroundOff();
-	SetBackgroundColor(CRGBA(128, 128, 128, 128));
+	SetBackgroundColor(CRGBA(0x80, 0x80, 0x80, 0x80));
 	SetBackGroundOnlyTextOff();
 	SetPropOn();
 	SetFontStyle(FONT_BANK);
@@ -357,33 +291,20 @@ CFont::Initialise(void)
 	SetDropShadowPosition(0);
 	CTxdStore::PopCurrentTxd();
 
-#if !defined(GAMEPAD_MENU) && defined(BUTTON_ICONS)
-	// loaded in CMenuManager with GAMEPAD_MENU defined
-	LoadButtons("MODELS/X360BTNS.TXD");
-#endif
-}
-
 #ifdef BUTTON_ICONS
-void
-CFont::LoadButtons(const char *txdPath)
-{
-	if (int file = CFileMgr::OpenFile(txdPath)) {
+	if (int file = CFileMgr::OpenFile("MODELS/X360BTNS.TXD")) {
 		CFileMgr::CloseFile(file);
-		if (ButtonsSlot == -1)
-			ButtonsSlot = CTxdStore::AddTxdSlot("buttons");
-		else {
-			for (int i = 0; i < MAX_BUTTON_ICONS; i++)
-				ButtonSprite[i].Delete();
-			CTxdStore::RemoveTxd(ButtonsSlot);
-		}
-		CTxdStore::LoadTxd(ButtonsSlot, txdPath);
+		ButtonsSlot = CTxdStore::AddTxdSlot("buttons");
+		CTxdStore::LoadTxd(ButtonsSlot, "MODELS/X360BTNS.TXD");
 		CTxdStore::AddRef(ButtonsSlot);
 		CTxdStore::PushCurrentTxd();
 		CTxdStore::SetCurrentTxd(ButtonsSlot);
-		ButtonSprite[BUTTON_UP].SetTexture("thumblyu");
-		ButtonSprite[BUTTON_DOWN].SetTexture("thumblyd");
-		ButtonSprite[BUTTON_LEFT].SetTexture("thumblxl");
-		ButtonSprite[BUTTON_RIGHT].SetTexture("thumblxr");
+#if 0  // unused
+		ButtonSprite[BUTTON_UP].SetTexture("up");
+		ButtonSprite[BUTTON_DOWN].SetTexture("down");
+		ButtonSprite[BUTTON_LEFT].SetTexture("left");
+		ButtonSprite[BUTTON_RIGHT].SetTexture("right");
+#endif
 		ButtonSprite[BUTTON_CROSS].SetTexture("cross");
 		ButtonSprite[BUTTON_CIRCLE].SetTexture("circle");
 		ButtonSprite[BUTTON_SQUARE].SetTexture("square");
@@ -394,22 +315,10 @@ CFont::LoadButtons(const char *txdPath)
 		ButtonSprite[BUTTON_R1].SetTexture("r1");
 		ButtonSprite[BUTTON_R2].SetTexture("r2");
 		ButtonSprite[BUTTON_R3].SetTexture("r3");
-		ButtonSprite[BUTTON_RSTICK_UP].SetTexture("thumbryu");
-		ButtonSprite[BUTTON_RSTICK_DOWN].SetTexture("thumbryd");
-		ButtonSprite[BUTTON_RSTICK_LEFT].SetTexture("thumbrxl");
-		ButtonSprite[BUTTON_RSTICK_RIGHT].SetTexture("thumbrxr");
 		CTxdStore::PopCurrentTxd();
 	}
-	else {
-		if (ButtonsSlot != -1) {
-			for (int i = 0; i < MAX_BUTTON_ICONS; i++)
-				ButtonSprite[i].Delete();
-			CTxdStore::RemoveTxdSlot(ButtonsSlot);
-			ButtonsSlot = -1;
-		}
-	}
-}
 #endif // BUTTON_ICONS
+}
 
 #ifdef MORE_LANGUAGES
 void
@@ -418,8 +327,9 @@ CFont::ReloadFonts(uint8 set)
 	if (Slot != -1 && LanguageSet != set) {
 		Sprite[0].Delete();
 		Sprite[1].Delete();
+		Sprite[2].Delete();
 		if (IsJapanese())
-			Sprite[2].Delete();
+			Sprite[3].Delete();
 		CTxdStore::PushCurrentTxd();
 		CTxdStore::RemoveTxd(Slot);
 		switch (set)
@@ -441,9 +351,12 @@ CFont::ReloadFonts(uint8 set)
 		CTxdStore::SetCurrentTxd(Slot);
 		Sprite[0].SetTexture("font2", "font2_mask");
 		if (set == FONT_LANGSET_JAPANESE) {
-			Sprite[2].SetTexture("FONTJAP", "FONTJAP_mask");
+			Sprite[1].SetTexture("FONTJAP", "FONTJAP_mask");
+			Sprite[3].SetTexture("FONTJAP", "FONTJAP_mask");
 		}
-		Sprite[1].SetTexture("font1", "font1_mask");
+		else
+			Sprite[1].SetTexture("pager", "pager_mask");
+		Sprite[2].SetTexture("font1", "font1_mask");
 		CTxdStore::PopCurrentTxd();
 	}
 	LanguageSet = set;
@@ -458,11 +371,11 @@ CFont::Shutdown(void)
 		for (int i = 0; i < MAX_BUTTON_ICONS; i++)
 			ButtonSprite[i].Delete();
 		CTxdStore::RemoveTxdSlot(ButtonsSlot);
-		ButtonsSlot = -1;
 	}
 #endif
 	Sprite[0].Delete();
 	Sprite[1].Delete();
+	Sprite[2].Delete();
 #ifdef MORE_LANGUAGES
 	if (IsJapanese())
 		Sprite[3].Delete();
@@ -476,11 +389,15 @@ CFont::Shutdown(void)
 void
 CFont::InitPerFrame(void)
 {
-	RenderState.style = -1;
-	Details.anonymous_25 = 0;
-	FontRenderStatePointer.pRenderState = (CFontRenderState*)FontRenderStateBuf;
+	Details.bank = CSprite2d::GetBank(30, Sprite[0].m_pTexture);
+	CSprite2d::GetBank(15, Sprite[1].m_pTexture);
+	CSprite2d::GetBank(15, Sprite[2].m_pTexture);
+#ifdef MORE_LANGUAGES
+	if (IsJapanese())
+		CSprite2d::GetBank(15, Sprite[3].m_pTexture);
+#endif
 	SetDropShadowPosition(0);
-	NewLine = false;
+	NewLine = 0;
 #ifdef BUTTON_ICONS
 	PS2Symbol = BUTTON_NONE;
 #endif
@@ -496,20 +413,14 @@ CFont::DrawButton(float x, float y)
 	if (PS2Symbol != BUTTON_NONE) {
 		CRect rect;
 		rect.left = x;
-		rect.top = RenderState.scaleY + RenderState.scaleY + y;
-		rect.right = RenderState.scaleY * 17.0f + x;
-		rect.bottom = RenderState.scaleY * 19.0f + y;
+		rect.top = Details.scaleY + Details.scaleY + y;
+		rect.right = Details.scaleY * 17.0f + x;
+		rect.bottom = Details.scaleY * 19.0f + y;
 
 		int vertexAlphaState;
-		void *raster;
 		RwRenderStateGet(rwRENDERSTATEVERTEXALPHAENABLE, &vertexAlphaState);
-		RwRenderStateGet(rwRENDERSTATETEXTURERASTER, &raster);
 		RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void *)TRUE);
-		if (RenderState.bIsShadow)
-			ButtonSprite[PS2Symbol].Draw(rect, RenderState.color);
-		else
-			ButtonSprite[PS2Symbol].Draw(rect, CRGBA(255, 255, 255, RenderState.color.a));
-		RwRenderStateSet(rwRENDERSTATETEXTURERASTER, raster);
+		ButtonSprite[PS2Symbol].Draw(rect, CRGBA(255, 255, 255, Details.color.a));
 		RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void *)vertexAlphaState);
 	}
 }
@@ -518,15 +429,11 @@ CFont::DrawButton(float x, float y)
 void
 CFont::PrintChar(float x, float y, wchar c)
 {
-	bool bDontPrint = false;
 	if(x <= 0.0f || x > SCREEN_WIDTH ||
 	   y <= 0.0f || y > SCREEN_HEIGHT)	// BUG: game uses SCREENW again
 		return;
 
-	bDontPrint = c == '\0';
 	float w = GetCharacterWidth(c) / 32.0f;
-	if (Details.bFontHalfTexture && c == 208)
-		c = '\0';
 	float xoff = c % 16;
 	float yoff = c / 16;
 #ifdef MORE_LANGUAGES
@@ -537,46 +444,30 @@ CFont::PrintChar(float x, float y, wchar c)
 	}
 #endif
 
-	if(RenderState.style == FONT_BANK || RenderState.style == FONT_STANDARD){
-		if (bDontPrint) return;
-		if (RenderState.slant == 0.0f) {
-#ifdef FIX_BUGS
-			if (c < 192) {
-#else
-			if (c < 193) {
-#endif
-				CSprite2d::AddToBuffer(
-					CRect(x, y,
-						x + 32.0f * RenderState.scaleX * 1.0f,
-						y + 40.0f * RenderState.scaleY * 0.5f),
-					RenderState.color,
-					xoff / 16.0f, yoff / 12.8f + 0.0021f,
-					(xoff + 1.0f) / 16.0f - 0.001f, yoff / 12.8f + 0.0021f,
-					xoff / 16.0f, (yoff + 1.0f) / 12.8f - 0.0021f,
-					(xoff + 1.0f) / 16.0f - 0.001f, (yoff + 1.0f) / 12.8f - 0.0021f);
-			} else {
-				CSprite2d::AddToBuffer(
-					CRect(x, y,
-						x + 32.0f * RenderState.scaleX * 1.0f,
-						y + 33.0f * RenderState.scaleY * 0.5f),
-					RenderState.color,
-					xoff / 16.0f, yoff / 12.8f + 0.0021f,
-					(xoff + 1.0f) / 16.0f - 0.001f, yoff / 12.8f + 0.0021f,
-					xoff / 16.0f, (yoff + 1.0f) / 12.8f - 0.017f,
-					(xoff + 1.0f) / 16.0f - 0.001f, (yoff + 1.0f) / 12.8f - 0.017f);
-			}
-		} else
-			CSprite2d::AddToBuffer(
-				CRect(x, y,
-					x + 32.0f * RenderState.scaleX * 1.0f,
-					y + 40.0f * RenderState.scaleY * 0.5f),
-				RenderState.color,
-				xoff / 16.0f, yoff / 12.8f + 0.00055f,
-				(xoff + 1.0f) / 16.0f - 0.001f, yoff / 12.8f + 0.0021f + 0.01f,
-				xoff / 16.0f, (yoff + 1.0f) / 12.8f - 0.009f,
-				(xoff + 1.0f) / 16.0f - 0.001f, (yoff + 1.0f) / 12.8f - 0.0021f + 0.01f);
+	if(Details.style == FONT_BANK || Details.style == FONT_HEADING){
+		if(Details.dropShadowPosition != 0){
+			CSprite2d::AddSpriteToBank(Details.bank + Details.style,	// BUG: game doesn't add bank
+				CRect(x + SCREEN_SCALE_X(Details.dropShadowPosition),
+				      y + SCREEN_SCALE_Y(Details.dropShadowPosition),
+				      x + SCREEN_SCALE_X(Details.dropShadowPosition) + 32.0f * Details.scaleX * 1.0f,
+				      y + SCREEN_SCALE_Y(Details.dropShadowPosition) + 40.0f * Details.scaleY * 0.5f),
+				Details.dropColor,
+				xoff/16.0f,                 yoff/12.8f,
+				(xoff+1.0f)/16.0f - 0.001f, yoff/12.8f,
+				xoff/16.0f,                 (yoff+1.0f)/12.8f,
+				(xoff+1.0f)/16.0f - 0.001f, (yoff+1.0f)/12.8f - 0.0001f);
+		}
+		CSprite2d::AddSpriteToBank(Details.bank + Details.style,	// BUG: game doesn't add bank
+			CRect(x, y,
+			      x + 32.0f * Details.scaleX * 1.0f,
+			      y + 40.0f * Details.scaleY * 0.5f),
+			Details.color,
+			xoff/16.0f,                 yoff/12.8f,
+			(xoff+1.0f)/16.0f - 0.001f, yoff/12.8f,
+			xoff/16.0f,                 (yoff+1.0f)/12.8f - 0.002f,
+			(xoff+1.0f)/16.0f - 0.001f, (yoff+1.0f)/12.8f - 0.002f);
 #ifdef MORE_LANGUAGES
-	/*}else if (IsJapaneseFont()) {
+	}else if (IsJapaneseFont()) {
 		if (Details.dropShadowPosition != 0) {
 			CSprite2d::AddSpriteToBank(Details.bank + Details.style,	// BUG: game doesn't add bank
 				CRect(x + SCREEN_SCALE_X(Details.dropShadowPosition),
@@ -597,20 +488,18 @@ CFont::PrintChar(float x, float y, wchar c)
 			xoff * w / 1024.0f, yoff / 25.6f,
 			xoff * w / 1024.0f + (1.0f / 48.0f) - 0.001f, yoff / 25.6f,
 			xoff * w / 1024.0f, (yoff + 1.0f) / 25.6f - 0.002f,
-			xoff * w / 1024.0f + (1.0f / 48.0f) - 0.001f, (yoff + 1.0f) / 25.6f - 0.0001f);*/
+			xoff * w / 1024.0f + (1.0f / 48.0f) - 0.001f, (yoff + 1.0f) / 25.6f - 0.0001f);
 #endif
-	} else {
-		if (bDontPrint) return;
-		CSprite2d::AddToBuffer(
+	}else
+		CSprite2d::AddSpriteToBank(Details.bank + Details.style,	// BUG: game doesn't add bank
 			CRect(x, y,
-				x + 32.0f * RenderState.scaleX * w,
-				y + 32.0f * RenderState.scaleY * 0.5f),
-			RenderState.color,
-			xoff / 16.0f, yoff / 16.0f,
-			(xoff + w) / 16.0f, yoff / 16.0f,
-			xoff / 16.0f, (yoff + 1.0f) / 16.0f,
-			(xoff + w) / 16.0f - 0.0001f, (yoff + 1.0f) / 16.0f - 0.0001f);
-	}
+					x + 32.0f * Details.scaleX * w,
+					y + 32.0f * Details.scaleY * 0.5f),
+			Details.color,
+			xoff/16.0f,               yoff/16.0f,
+			(xoff+w)/16.0f,           yoff/16.0f,
+			xoff/16.0f,               (yoff+1.0f)/16.0f,
+			(xoff+w)/16.0f - 0.0001f, (yoff+1.0f)/16.0f - 0.0001f);
 }
 
 #ifdef MORE_LANGUAGES
@@ -636,210 +525,6 @@ bool CFont::IsAnsiCharacter(wchar *s)
 #endif
 
 void
-CFont::RenderFontBuffer()
-{
-	if (FontRenderStatePointer.pRenderState == (CFontRenderState*)FontRenderStateBuf) return;
-
-	float textPosX;
-	float textPosY;
-	CRGBA color;
-	bool bBold = false;
-	bool bFlash = false;
-
-	Sprite[RenderState.style].SetRenderState();
-	RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)TRUE);
-	RenderState = *(CFontRenderState*)&FontRenderStateBuf[0];
-	textPosX = RenderState.fTextPosX;
-	textPosY = RenderState.fTextPosY;
-	color = RenderState.color;
-	tFontRenderStatePointer pRenderStateBufPointer;
-	pRenderStateBufPointer.pRenderState = (CFontRenderState*)&FontRenderStateBuf[0];
-	for (++pRenderStateBufPointer.pRenderState; pRenderStateBufPointer.pStr < FontRenderStatePointer.pStr; pRenderStateBufPointer.pStr++) {
-		if (*pRenderStateBufPointer.pStr == '\0') {
-			tFontRenderStatePointer tmpPointer = pRenderStateBufPointer;
-			tmpPointer.pStr++;
-			tmpPointer.Align();
-			if (tmpPointer.pStr >= FontRenderStatePointer.pStr)
-				break;
-
-			RenderState = *(tmpPointer.pRenderState++);
-
-			pRenderStateBufPointer = tmpPointer;
-
-			textPosX = RenderState.fTextPosX;
-			textPosY = RenderState.fTextPosY;
-			color = RenderState.color;
-		}
-		if (*pRenderStateBufPointer.pStr == '~') {
-#ifdef BUTTON_ICONS
-			PS2Symbol = BUTTON_NONE;
-#endif
-			pRenderStateBufPointer.pStr = ParseToken(pRenderStateBufPointer.pStr, color, bFlash, bBold);
-#ifdef BUTTON_ICONS
-			if(PS2Symbol != BUTTON_NONE) {
-				DrawButton(textPosX, textPosY);
-				textPosX += RenderState.scaleY * 17.0f;
-				PS2Symbol = BUTTON_NONE;
-			}
-#endif
-			if (bFlash) {
-				if (CTimer::GetTimeInMilliseconds() - Details.nFlashTimer > 300) {
-					Details.bFlashState = !Details.bFlashState;
-					Details.nFlashTimer = CTimer::GetTimeInMilliseconds();
-				}
-				Details.color.alpha = Details.bFlashState ? 0 : 255;
-			}
-			if (!RenderState.bIsShadow)
-				RenderState.color = color;
-		}
-		wchar c = *pRenderStateBufPointer.pStr;
-		c -= ' ';
-		if (RenderState.bFontHalfTexture) 
-			c = FindNewCharacter(c); 
-		else if (c > 155) 
-			c = '\0'; 
-
-		if (RenderState.slant != 0.0f)
-			textPosY = (RenderState.slantRefX - textPosX) * RenderState.slant + RenderState.slantRefY;
-		PrintChar(textPosX, textPosY, c);
-		if (bBold) {
-			PrintChar(textPosX + 1.0f, textPosY, c);
-			PrintChar(textPosX + 2.0f, textPosY, c);
-			textPosX += 2.0f;
-		}
-#ifdef FIX_BUGS
-		// PS2 uses different chars for some symbols
-		if (!RenderState.bFontHalfTexture && c == 30) c = 61; // wanted star
-#endif
-		textPosX += RenderState.scaleX * GetCharacterWidth(c);
-		if (c == '\0')
-			textPosX += RenderState.fExtraSpace;
-	}
-	CSprite2d::RenderVertexBuffer();
-	FontRenderStatePointer.pRenderState = (CFontRenderState*)FontRenderStateBuf;
-}
-
-#if 0 //def MORE_LANGUAGES
-bool
-CFont::PrintString(float x, float y, wchar *start, wchar *&end, float spwidth, float japX)
-{
-	wchar *s, c, unused;
-
-	if (IsJapanese()) {
-		float jx = 0.0f;
-		for (s = start; s < end; s++) {
-			if (*s == JAP_TERMINATION || *s == '~')
-				s = ParseToken(s, &unused, true);
-			if (NewLine) {
-				NewLine = false;
-				break;
-			}
-			jx += GetCharacterSize(*s - ' ');
-		}
-		s = start;
-		if (Details.centre)
-			x = japX - jx / 2.0f;
-		else if (Details.rightJustify)
-			x = japX - jx;
-	}
-
-	for (s = start; s < end; s++) {
-		if (*s == '~' || (IsJapanese() && *s == JAP_TERMINATION))
-			s = ParseToken(s, &unused);
-		if (NewLine && IsJapanese()) {
-			NewLine = false;
-			end = s;
-			return true;
-		}
-		c = *s - ' ';
-		if (Details.slant != 0.0f && !IsJapanese())
-			y = (Details.slantRefX - x) * Details.slant + Details.slantRefY;
-
-		PrintChar(x, y, c);
-		x += GetCharacterSize(c);
-		if (c == 0 && (!NewLine || !IsJapanese()))	// space
-			x += spwidth;
-	}
-	return false;
-}
-#else
-void
-CFont::PrintString(float x, float y, uint32, wchar *start, wchar *end, float spwidth)
-{
-	wchar *s;
-
-	if (RenderState.style != Details.style) {
-		RenderFontBuffer();
-		RenderState.style = Details.style;
-	}
-
-	float dropShadowPosition = Details.dropShadowPosition;
-	if (dropShadowPosition != 0.0f && (Details.style == FONT_BANK || Details.style == FONT_STANDARD)) {
-		CRGBA color = Details.color;
-		Details.color = Details.dropColor;
-		Details.dropShadowPosition = 0;
-		Details.bIsShadow = true;
-		if (Details.slant != 0.0f) {
-			Details.slantRefX += SCREEN_SCALE_X(dropShadowPosition);
-			Details.slantRefY += SCREEN_SCALE_Y(dropShadowPosition);
-			PrintString(SCREEN_SCALE_X(dropShadowPosition) + x, SCREEN_SCALE_Y(dropShadowPosition) + y, Details.anonymous_25, start, end, spwidth);
-			Details.slantRefX -= SCREEN_SCALE_X(dropShadowPosition);
-			Details.slantRefY -= SCREEN_SCALE_Y(dropShadowPosition);
-		} else {
-			PrintString(SCREEN_SCALE_X(dropShadowPosition) + x, SCREEN_SCALE_Y(dropShadowPosition) + y, Details.anonymous_25, start, end, spwidth);
-		}
-		Details.color = color;
-		Details.dropShadowPosition = dropShadowPosition;
-		Details.bIsShadow = false;
-	}
-	if (FontRenderStatePointer.pStr >= (wchar*)&FontRenderStateBuf[ARRAY_SIZE(FontRenderStateBuf)] - (end - start + 26)) // why 26?
-		RenderFontBuffer();
-	CFontRenderState *pRenderState = FontRenderStatePointer.pRenderState;
-	pRenderState->fTextPosX = x;
-	pRenderState->fTextPosY = y;
-	pRenderState->scaleX = Details.scaleX;
-	pRenderState->scaleY = Details.scaleY;
-	pRenderState->color = Details.color;
-	pRenderState->fExtraSpace = spwidth;
-	pRenderState->slant = Details.slant;
-	pRenderState->slantRefX = Details.slantRefX;
-	pRenderState->slantRefY = Details.slantRefY;
-	pRenderState->bFontHalfTexture = Details.bFontHalfTexture;
-	pRenderState->proportional = Details.proportional;
-	pRenderState->style = Details.style;
-	pRenderState->bIsShadow = Details.bIsShadow;
-	FontRenderStatePointer.pRenderState++;
-
-	for(s = start; s < end;){
-		if (*s == '~') {
-			for (wchar *i = ParseToken(s); s != i; FontRenderStatePointer.pStr++) {
-				*FontRenderStatePointer.pStr = *(s++);
-			}
-			if (Details.bFlash) {
-				if (CTimer::GetTimeInMilliseconds() - Details.nFlashTimer > 300) {
-					Details.bFlashState = !Details.bFlashState;
-					Details.nFlashTimer = CTimer::GetTimeInMilliseconds();
-				}
-				Details.color.a = Details.bFlashState ? 0 : 255;
-			}
-		} else
-			*(FontRenderStatePointer.pStr++) = *(s++);
-	}
-	*(FontRenderStatePointer.pStr++) = '\0';
-	FontRenderStatePointer.Align();
-}
-#endif
-
-void
-CFont::PrintStringFromBottom(float x, float y, wchar *str)
-{
-	y -= (32.0f * Details.scaleY / 2.0f + 2.0f * Details.scaleY) * GetNumberLines(x, y, str);
-	if (Details.slant != 0.0f)
-		y -= ((Details.slantRefX - x) * Details.slant + Details.slantRefY);
-	PrintString(x, y, str);
-}
-
-void
 CFont::PrintString(float xstart, float ystart, wchar *s)
 {
 	CRect rect;
@@ -849,14 +534,10 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 	bool first;
 	wchar *start, *t;
 
-	Details.bFlash = false;
-
 	if(*s == '*')
 		return;
 
-	Details.anonymous_25++;
 	if(Details.background){
-		RenderState.color = Details.color;
 		GetNumberLines(xstart, ystart, s);	// BUG: result not used
 		GetTextRect(&rect, xstart, ystart, s);
 		CSprite2d::DrawRect(rect, Details.backgroundColor);
@@ -896,10 +577,10 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 					float xleft = Details.centre ? xstart - x/2 :
 					              Details.rightJustify ? xstart - x :
 					              xstart;
-#if 0//def MORE_LANGUAGES
+#ifdef MORE_LANGUAGES
 					PrintString(xleft, y, start, s, spaceWidth, xstart);
 #else
-					PrintString(xleft, y, Details.anonymous_25, start, s, spaceWidth);
+					PrintString(xleft, y, start, s, spaceWidth);
 #endif
 					// reset things
 					lineLength = 0.0f;
@@ -911,10 +592,10 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 						x = xstart;
 #ifdef MORE_LANGUAGES
 					if (IsJapaneseFont())
-						y += 32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY;
+						y += 32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY;
 					else
 #endif
-						y += 32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY;
+						y += 32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY;
 					start = s;
 				}else
 					break;
@@ -934,7 +615,7 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 #endif
 			lineLength = x;
 			s = t+1;
-#if 0 //def MORE_LANGUAGES
+#ifdef MORE_LANGUAGES
 			if (IsJapaneseFont() && !*s) {
 				x += GetStringWidth(s);
 				if (IsAnsiCharacter(s))
@@ -950,7 +631,7 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 					else
 						x = 0.0f;
 
-					y += 32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY;
+					y += 32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY;
 					numSpaces = 0;
 					first = true;
 					lineLength = 0.0f;
@@ -966,20 +647,20 @@ CFont::PrintString(float xstart, float ystart, wchar *s)
 		float xleft = Details.centre ? xstart - x/2 :
 		              Details.rightJustify ? xstart - x :
 		              xstart;
-#if 0 //def MORE_LANGUAGES
+#ifdef MORE_LANGUAGES
 		if (PrintString(xleft, y, start, s, 0.0f, xstart) && IsJapaneseFont()) {
 			start = s;
 			if (!Details.centre && !Details.rightJustify)
 				x = xstart;
 			else
 				x = 0.0f;
-			y += 32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY;
+			y += 32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY;
 			numSpaces = 0;
 			first = true;
 			lineLength = 0.0f;
 		}
 #else
-		PrintString(xleft, y, Details.anonymous_25, start, s, 0.0f);
+		PrintString(xleft, y, start, s, 0.0f);
 #endif
 	}
 }
@@ -992,7 +673,7 @@ CFont::GetNumberLines(float xstart, float ystart, wchar *s)
 	wchar *t;
 	n = 0;
 
-#if 0//def MORE_LANGUAGES
+#ifdef MORE_LANGUAGES
 	bool bSomeJapBool = false;
 
 	if (IsJapanese()) {
@@ -1050,10 +731,10 @@ CFont::GetNumberLines(float xstart, float ystart, wchar *s)
 			// Why even?
 #ifdef MORE_LANGUAGES
 			if (IsJapanese())
-				y += 32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY;
+				y += 32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY;
 			else
 #endif
-				y += 32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY;
+				y += 32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY;
 		}else{
 			// still space in current line
 			t = GetNextSpace(s);
@@ -1124,7 +805,7 @@ CFont::GetTextRect(CRect *rect, float xstart, float ystart, wchar *s)
 				else
 					x = xstart;
 				numLines++;
-				y += 32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY;
+				y += 32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY;
 			}else{
 				// still space in current line
 				t = GetNextSpace(s);
@@ -1152,11 +833,11 @@ CFont::GetTextRect(CRect *rect, float xstart, float ystart, wchar *s)
 			rect->right = xstart + maxlength/2 + 4.0f;
 #ifdef MORE_LANGUAGES
 			if (IsJapaneseFont()) {
-				rect->bottom = (32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY) * numLines + ystart + (4.0f / 2.75f);
+				rect->bottom = (32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY) * numLines + ystart + (4.0f / 2.75f);
 				rect->top = ystart - (4.0f / 2.75f);
 			} else {
 #endif
-				rect->bottom = (32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY) * numLines + ystart + 2.0f;
+				rect->bottom = (32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY) * numLines + ystart + 2.0f;
 				rect->top = ystart - 2.0f;
 #ifdef MORE_LANGUAGES
 			}
@@ -1166,11 +847,11 @@ CFont::GetTextRect(CRect *rect, float xstart, float ystart, wchar *s)
 			rect->right = xstart + Details.centreSize*0.5f + 4.0f;
 #ifdef MORE_LANGUAGES
 			if (IsJapaneseFont()) {
-				rect->bottom = (32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY) * numLines + ystart + (4.0f / 2.75f);
+				rect->bottom = (32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY) * numLines + ystart + (4.0f / 2.75f);
 				rect->top = ystart - (4.0f / 2.75f);
 			} else {
 #endif
-				rect->bottom = (32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY) * numLines + ystart + 2.0f;
+				rect->bottom = (32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY) * numLines + ystart + 2.0f;
 				rect->top = ystart - 2.0f;
 #ifdef MORE_LANGUAGES
 			}
@@ -1183,51 +864,159 @@ CFont::GetTextRect(CRect *rect, float xstart, float ystart, wchar *s)
 		rect->bottom = ystart - 4.0f + 4.0f;
 #ifdef MORE_LANGUAGES
 		if (IsJapaneseFont())
-			rect->top = (32.0f * Details.scaleY / 2.75f + 2.0f * Details.scaleY) * numLines + ystart + 2.0f + (4.0f / 2.75f);
+			rect->top = (32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY) * numLines + ystart + 2.0f + (4.0f / 2.75f);
 		else
 #endif
-			rect->top = (32.0f * Details.scaleY * 0.5f + 2.0f * Details.scaleY) * numLines + ystart + 2.0f + 2.0f;
+			rect->top = (32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY) * numLines + ystart + 2.0f + 2.0f;
 	}
 }
+
+#ifdef MORE_LANGUAGES
+bool
+CFont::PrintString(float x, float y, wchar *start, wchar *&end, float spwidth, float japX)
+{
+	wchar *s, c, unused;
+
+	if (IsJapanese()) {
+		float jx = 0.0f;
+		for (s = start; s < end; s++) {
+			if (*s == JAP_TERMINATION || *s == '~')
+				s = ParseToken(s, &unused, true);
+			if (NewLine) {
+				NewLine = false;
+				break;
+			}
+			jx += GetCharacterSize(*s - ' ');
+		}
+		s = start;
+		if (Details.centre)
+			x = japX - jx / 2.0f;
+		else if (Details.rightJustify)
+			x = japX - jx;
+	}
+
+	for (s = start; s < end; s++) {
+		if (*s == '~' || (IsJapanese() && *s == JAP_TERMINATION))
+			s = ParseToken(s, &unused);
+		if (NewLine && IsJapanese()) {
+			NewLine = false;
+			end = s;
+			return true;
+		}
+		c = *s - ' ';
+		if (Details.slant != 0.0f && !IsJapanese())
+			y = (Details.slantRefX - x) * Details.slant + Details.slantRefY;
+
+#ifdef BUTTON_ICONS
+		if (PS2Symbol != BUTTON_NONE) {
+			DrawButton(x, y);
+			x += Details.scaleY * 17.0f;
+			PS2Symbol = BUTTON_NONE;
+		}
+#endif
+
+		PrintChar(x, y, c);
+		x += GetCharacterSize(c);
+		if (c == 0 && (!NewLine || !IsJapanese()))	// space
+			x += spwidth;
+	}
+	return false;
+}
+#else
+void
+CFont::PrintString(float x, float y, wchar *start, wchar *end, float spwidth)
+{
+	wchar *s, c, unused;
+
+	for(s = start; s < end; s++){
+		if(*s == '~')
+			s = ParseToken(s, &unused);
+		c = *s - ' ';
+		if(Details.slant != 0.0f)
+			y = (Details.slantRefX - x)*Details.slant + Details.slantRefY;
+		PrintChar(x, y, c);
+		x += GetCharacterSize(c);
+		if(c == 0)	// space
+			x += spwidth;
+	}
+}
+#endif
+
+#ifdef XBOX_SUBTITLES
+void
+CFont::PrintStringFromBottom(float x, float y, wchar *str)
+{
+#ifdef MORE_LANGUAGES
+	if (IsJapaneseFont())
+		y -= (32.0f * CFont::Details.scaleY / 2.75f + 2.0f * CFont::Details.scaleY) * GetNumberLines(x, y, str);
+	else
+#endif
+		y -= (32.0f * CFont::Details.scaleY * 0.5f + 2.0f * CFont::Details.scaleY) * GetNumberLines(x, y, str);
+	PrintString(x, y, str);
+}
+
+void
+CFont::PrintOutlinedString(float x, float y, wchar *str, float outlineStrength, bool fromBottom, CRGBA outlineColor)
+{
+	CRGBA textColor = Details.color;
+	SetColor(outlineColor);
+	CVector2D offsets[] = { {1.f, 1.f}, {1.f, -1.f}, {-1.f, 1.f}, {-1.f, -1.f} };
+	for(int i = 0; i < ARRAY_SIZE(offsets); i++){
+		if (fromBottom)
+			PrintStringFromBottom(x + SCREEN_SCALE_X(offsets[i].x * outlineStrength), y + SCREEN_SCALE_Y(offsets[i].y * outlineStrength), str);
+		else
+			PrintString(x + SCREEN_SCALE_X(offsets[i].x * outlineStrength), y + SCREEN_SCALE_Y(offsets[i].y * outlineStrength), str);
+	}
+	SetColor(textColor);
+	
+	if (fromBottom)
+		PrintStringFromBottom(x, y, str);
+	else
+		PrintString(x, y, str);
+}
+#endif
 
 float
 CFont::GetCharacterWidth(wchar c)
 {
 #ifdef MORE_LANGUAGES
 	if (IsJapanese()) {
-		if (!RenderState.proportional)
+		if (!Details.proportional)
 			return Size[0][Details.style][192];
-		if (c <= 94 || Details.style == FONT_HEADING || RenderState.style == FONT_BANK) {
-			switch (RenderState.style)
+		if (c <= 94 || Details.style == FONT_HEADING || Details.style == FONT_BANK) {
+			switch (Details.style)
 			{
 			case FONT_JAPANESE:
 				return Size_jp[c];
 			default:
-				return Size[0][RenderState.style][c];
+				return Size[0][Details.style][c];
 			}
 		}
+		if (c < 254 && Details.style == FONT_PAGER)
+			return 29.4f;
 
-		switch (RenderState.style)
+		switch (Details.style)
 		{
 		case FONT_JAPANESE:
 			return 29.4f;
 		case FONT_BANK:
 			return 10.0f;
+		case FONT_PAGER:
+			return 31.5f;
 		default:
-			return Size[0][RenderState.style][c];
+			return Size[0][Details.style][c];
 		}
 	}
 
-	else if (RenderState.proportional)
-		return Size[LanguageSet][RenderState.style][c];
+	else if (Details.proportional)
+		return Size[LanguageSet][Details.style][c];
 	else
-		return Size[LanguageSet][RenderState.style][209];
+		return Size[LanguageSet][Details.style][192];
 #else
-
-	if (RenderState.proportional)
-		return Size[RenderState.style][c];
+	if (Details.proportional)
+		return Size[Details.style][c];
 	else
-		return Size[RenderState.style][209];
+		return Size[Details.style][192];
 #endif // MORE_LANGUAGES
 }
 
@@ -1239,7 +1028,7 @@ CFont::GetCharacterSize(wchar c)
 	if (IsJapanese())
 	{
 		if (!Details.proportional)
-			return Size[0][Details.style][209] * Details.scaleX;
+			return Size[0][Details.style][192] * Details.scaleX;
 		if (c <= 94 || Details.style == FONT_HEADING || Details.style == FONT_BANK) {
 			switch (Details.style)
 			{
@@ -1249,6 +1038,8 @@ CFont::GetCharacterSize(wchar c)
 				return Size[0][Details.style][c] * Details.scaleX;
 			}
 		}
+		if (c < 254 && (Details.style == FONT_PAGER))
+			return 29.4f * Details.scaleX;
 
 		switch (Details.style)
 		{
@@ -1256,32 +1047,21 @@ CFont::GetCharacterSize(wchar c)
 			return 29.4f * Details.scaleX;
 		case FONT_BANK:
 			return 10.0f * Details.scaleX;
+		case FONT_PAGER:
+			return 31.5f * Details.scaleX;
 		default:
 			return Size[0][Details.style][c] * Details.scaleX;
 		}
 	}
+	else if(Details.proportional)
+		return Size[LanguageSet][Details.style][c] * Details.scaleX;
 	else
-	{
-		if (!Details.bFontHalfTexture && c == 30) c = 61; // wanted star
-		if (Details.bFontHalfTexture)
-			c = FindNewCharacter(c);
-		if (Details.proportional)
-			return Size[LanguageSet][Details.style][c] * Details.scaleX;
-		else
-			return Size[LanguageSet][Details.style][209] * Details.scaleX;
-	}
+		return Size[LanguageSet][Details.style][192] * Details.scaleX;
 #else
-
-#ifdef FIX_BUGS
-	// PS2 don't call FindNewCharacter in here at all, and also uses different chars for some symbols
-	if (!Details.bFontHalfTexture && c == 30) c = 61; // wanted star
-#endif
-	if (Details.bFontHalfTexture)
-		c = FindNewCharacter(c);
 	if (Details.proportional)
 		return Size[Details.style][c] * Details.scaleX;
 	else
-		return Size[Details.style][209] * Details.scaleX;
+		return Size[Details.style][192] * Details.scaleX;
 #endif // MORE_LANGUAGES
 }
 
@@ -1302,10 +1082,12 @@ CFont::GetStringWidth(wchar *s, bool spaces)
 						s++;
 #ifdef BUTTON_ICONS
 						switch (*s) {
+#if 0 // unused
 						case 'U':
 						case 'D':
 						case '<':
 						case '>':
+#endif
 						case 'X':
 						case 'O':
 						case 'Q':
@@ -1316,8 +1098,6 @@ CFont::GetStringWidth(wchar *s, bool spaces)
 						case 'J':
 						case 'V':
 						case 'C':
-						case '(':
-						case ')':
 							w += 17.0f * Details.scaleY;
 							break;
 						default:
@@ -1335,15 +1115,17 @@ CFont::GetStringWidth(wchar *s, bool spaces)
 	} else
 #endif
 	{
-		for (wchar c = *s; (c != ' ' || spaces) && c != '\0'; c = *(++s)) {
-			if (c == '~') {
+		for (; (*s != ' ' || spaces) && *s != '\0'; s++) {
+			if (*s == '~') {
 				s++;
 #ifdef BUTTON_ICONS
 				switch (*s) {
+#if 0 // unused
 				case 'U':
 				case 'D':
 				case '<':
 				case '>':
+#endif
 				case 'X':
 				case 'O':
 				case 'Q':
@@ -1354,21 +1136,22 @@ CFont::GetStringWidth(wchar *s, bool spaces)
 				case 'J':
 				case 'V':
 				case 'C':
-				case '(':
-				case ')':
 					w += 17.0f * Details.scaleY;
 					break;
 				default:
 					break;
 				}
 #endif
-				while (*s != '~') {
-					s++;
-				}
-			}
-			else {
-				w += GetCharacterSize(c - ' ');
-			}
+				while (*s != '~') s++;
+#ifndef FIX_BUGS
+				s++;
+				if (*s == ' ' && !spaces)
+					break;
+			} 
+#else
+			} else
+#endif
+				w += GetCharacterSize(*s - ' ');
 		}
 	}
 	return w;
@@ -1422,128 +1205,19 @@ CFont::GetNextSpace(wchar *s)
 			if(*s == '~'){
 				s++;
 				while(*s != '~') s++;
+#ifndef FIX_BUGS
+				s++;
+				if(*s == ' ')
+					break;
+#endif
 			}
 	}
 	return s;
 }
 
+#ifdef MORE_LANGUAGES
 wchar*
-CFont::ParseToken(wchar* str, CRGBA &color, bool &flash, bool &bold)
-{
-	Details.anonymous_23 = false;
-	wchar *s = str + 1;
-	if (Details.color.r || Details.color.g || Details.color.b)
-	{
-		switch (*s)
-		{
-		case 'B':
-			bold = !bold;
-			break;
-		case 'b':
-			color.r = 27;
-			color.g = 89;
-			color.b = 130;
-			break;
-		case 'f':
-			flash = !flash;
-			break;
-		case 'g':
-			color.r = 255;
-			color.g = 150;
-			color.b = 225;
-			break;
-		case 'h':
-			color.r = 225;
-			color.g = 225;
-			color.b = 225;
-			break;
-		case 'l':
-			color.r = 0;
-			color.g = 0;
-			color.b = 0;
-			break;
-		case 'o':
-			color.r = 229;
-			color.g = 125;
-			color.b = 126;
-			break;
-		case 'p':
-			color.r = 168;
-			color.g = 110;
-			color.b = 252;
-			break;
-		case 'q':
-			color.r = 199;
-			color.g = 144;
-			color.b = 203;
-			break;
-		case 'r':
-			color.r = 255;
-			color.g = 150;
-			color.b = 225;
-			break;
-		case 't':
-			color.r = 86;
-			color.g = 212;
-			color.b = 146;
-			break;
-		case 'w':
-			color.r = 175;
-			color.g = 175;
-			color.b = 175;
-			break;
-#ifdef FIX_BUGS
-		case 'x':
-			color.r = 0;
-			color.g = 255;
-			color.b = 255;
-			break;
-#else
-		case 'x':
-			color.r = 132;
-			color.g = 146;
-			color.b = 197;
-			break;
-#endif
-		case 'y':
-			color.r = 255;
-			color.g = 227;
-			color.b = 79;
-			break;
-#ifdef BUTTON_ICONS
-		case 'U': PS2Symbol = BUTTON_UP; break;
-		case 'D': PS2Symbol = BUTTON_DOWN; break;
-		case '<': PS2Symbol = BUTTON_LEFT; break;
-		case '>': PS2Symbol = BUTTON_RIGHT; break;
-		case 'X': PS2Symbol = BUTTON_CROSS; break;
-		case 'O': PS2Symbol = BUTTON_CIRCLE; break;
-		case 'Q': PS2Symbol = BUTTON_SQUARE; break;
-		case 'T': PS2Symbol = BUTTON_TRIANGLE; break;
-		case 'K': PS2Symbol = BUTTON_L1; break;
-		case 'M': PS2Symbol = BUTTON_L2; break;
-		case 'A': PS2Symbol = BUTTON_L3; break;
-		case 'J': PS2Symbol = BUTTON_R1; break;
-		case 'V': PS2Symbol = BUTTON_R2; break;
-		case 'C': PS2Symbol = BUTTON_R3; break;
-		case 'H': PS2Symbol = BUTTON_RSTICK_UP; break;
-		case 'L': PS2Symbol = BUTTON_RSTICK_DOWN; break;
-		case '(': PS2Symbol = BUTTON_RSTICK_LEFT; break;
-		case ')': PS2Symbol = BUTTON_RSTICK_RIGHT; break;
-#endif
-		default:
-			break;
-		}
-	}
-	while (*s != '~')
-		++s;
-	if (*(++s) == '~')
-		s = ParseToken(s, color, flash, bold);
-	return s;
-}
-
-#if 0//def MORE_LANGUAGES
-wchar*
-CFont::ParseToken(wchar *s, bool japShit)
+CFont::ParseToken(wchar *s, wchar* ss, bool japShit)
 {
 	s++;
 	if ((Details.color.r || Details.color.g || Details.color.b) && !japShit) {
@@ -1564,10 +1238,12 @@ CFont::ParseToken(wchar *s, bool japShit)
 		case 'w': SetColor(CRGBA(175, 175, 175, 255)); break;
 		case 'y': SetColor(CRGBA(210, 196, 106, 255)); break;
 #ifdef BUTTON_ICONS
+#if 0 // unused
 		case 'U': PS2Symbol = BUTTON_UP; break;
 		case 'D': PS2Symbol = BUTTON_DOWN; break;
 		case '<': PS2Symbol = BUTTON_LEFT; break;
 		case '>': PS2Symbol = BUTTON_RIGHT; break;
+#endif
 		case 'X': PS2Symbol = BUTTON_CROSS; break;
 		case 'O': PS2Symbol = BUTTON_CIRCLE; break;
 		case 'Q': PS2Symbol = BUTTON_SQUARE; break;
@@ -1578,10 +1254,6 @@ CFont::ParseToken(wchar *s, bool japShit)
 		case 'J': PS2Symbol = BUTTON_R1; break;
 		case 'V': PS2Symbol = BUTTON_R2; break;
 		case 'C': PS2Symbol = BUTTON_R3; break;
-		case 'H': PS2Symbol = BUTTON_RSTICK_UP; break;
-		case 'L': PS2Symbol = BUTTON_RSTICK_DOWN; break;
-		case '(': PS2Symbol = BUTTON_RSTICK_LEFT; break;
-		case ')': PS2Symbol = BUTTON_RSTICK_RIGHT; break;
 #endif
 		}
 	} else if (IsJapanese()) {
@@ -1589,111 +1261,40 @@ CFont::ParseToken(wchar *s, bool japShit)
 			NewLine = true;
 	}
 	while ((!IsJapanese() || (*s != JAP_TERMINATION)) && *s != '~') s++;
+#ifdef FIX_BUGS
+	if (*(++s) == '~')
+		s = ParseToken(s, ss, japShit);
+	return s;
+#else
 	return s + 1;
+#endif
 }
 #else
 wchar*
-CFont::ParseToken(wchar *s)
+CFont::ParseToken(wchar *s, wchar*)
 {
-	Details.anonymous_23 = false;
 	s++;
 	if(Details.color.r || Details.color.g || Details.color.b)
 		switch(*s){
-		case 'B':
-			Details.bBold = !Details.bBold;
-			break;
 		case 'N':
 		case 'n':
-			NewLine = true;
+			NewLine = 1;
 			break;
-		case 'b':
-			Details.color.r = 27;
-			Details.color.g = 89;
-			Details.color.b = 130;
-			Details.anonymous_23 = true;
-			break;
-		case 'f':
-			Details.bFlash = !Details.bFlash;
-			if (!Details.bFlash)
-				Details.color.a = 255;
-			break;
-		case 'g':
-			Details.color.r = 255;
-			Details.color.g = 150;
-			Details.color.b = 225;
-			Details.anonymous_23 = true;
-			break;
-		case 'h':
-			Details.color.r = 225;
-			Details.color.g = 225;
-			Details.color.b = 225;
-			Details.anonymous_23 = true;
-			break;
-		case 'l':
-			Details.color.r = 0;
-			Details.color.g = 0;
-			Details.color.b = 0;
-			Details.anonymous_23 = true;
-			break;
-		case 'o':
-			Details.color.r = 229;
-			Details.color.g = 125;
-			Details.color.b = 126;
-			Details.anonymous_23 = true;
-			break;
-		case 'p':
-			Details.color.r = 168;
-			Details.color.g = 110;
-			Details.color.b = 252;
-			Details.anonymous_23 = true;
-			break;
-		case 'q':
-			Details.color.r = 199;
-			Details.color.g = 144;
-			Details.color.b = 203;
-			Details.anonymous_23 = true;
-			break;
-		case 'r':
-			Details.color.r = 255;
-			Details.color.g = 150;
-			Details.color.b = 225;
-			Details.anonymous_23 = true;
-			break;
-		case 't':
-			Details.color.r = 86;
-			Details.color.g = 212;
-			Details.color.b = 146;
-			Details.anonymous_23 = true;
-			break;
-		case 'w':
-			Details.color.r = 175;
-			Details.color.g = 175;
-			Details.color.b = 175;
-			Details.anonymous_23 = true;
-			break;
-		case 'x':
-#ifdef FIX_BUGS
-			Details.color.r = 0;
-			Details.color.g = 255;
-			Details.color.b = 255;
-#else
-			Details.color.r = 132;
-			Details.color.g = 146;
-			Details.color.b = 197;
-#endif
-			Details.anonymous_23 = true;
-			break;
-		case 'y':
-			Details.color.r = 255;
-			Details.color.g = 227;
-			Details.color.b = 79;
-			Details.anonymous_23 = true;
-			break;
+		case 'b': SetColor(CRGBA(0x80, 0xA7, 0xF3, 0xFF)); break;
+		case 'g': SetColor(CRGBA(0x5F, 0xA0, 0x6A, 0xFF)); break;
+		case 'h': SetColor(CRGBA(0xE1, 0xE1, 0xE1, 0xFF)); break;
+		case 'l': SetColor(CRGBA(0x00, 0x00, 0x00, 0xFF)); break;
+		case 'p': SetColor(CRGBA(0xA8, 0x6E, 0xFC, 0xFF)); break;
+		case 'r': SetColor(CRGBA(0x71, 0x2B, 0x49, 0xFF)); break;
+		case 'w': SetColor(CRGBA(0xAF, 0xAF, 0xAF, 0xFF)); break;
+		case 'y': SetColor(CRGBA(0xD2, 0xC4, 0x6A, 0xFF)); break;
 #ifdef BUTTON_ICONS
+#if 0 // unused
 		case 'U': PS2Symbol = BUTTON_UP; break;
 		case 'D': PS2Symbol = BUTTON_DOWN; break;
 		case '<': PS2Symbol = BUTTON_LEFT; break;
 		case '>': PS2Symbol = BUTTON_RIGHT; break;
+#endif
 		case 'X': PS2Symbol = BUTTON_CROSS; break;
 		case 'O': PS2Symbol = BUTTON_CIRCLE; break;
 		case 'Q': PS2Symbol = BUTTON_SQUARE; break;
@@ -1704,42 +1305,33 @@ CFont::ParseToken(wchar *s)
 		case 'J': PS2Symbol = BUTTON_R1; break;
 		case 'V': PS2Symbol = BUTTON_R2; break;
 		case 'C': PS2Symbol = BUTTON_R3; break;
-		case 'H': PS2Symbol = BUTTON_RSTICK_UP; break;
-		case 'L': PS2Symbol = BUTTON_RSTICK_DOWN; break;
-		case '(': PS2Symbol = BUTTON_RSTICK_LEFT; break;
-		case ')': PS2Symbol = BUTTON_RSTICK_RIGHT; break;
 #endif
 		}
 	while(*s != '~') s++;
-	if (*(++s) == '~')
-		s = ParseToken(s);
-	return s;
+	return s+1;
 }
 #endif
-
-void
-CFont::FilterOutTokensFromString(wchar *str)
-{
-	int newIdx = 0;
-	wchar copy[256], *c;
-	UnicodeStrcpy(copy, str);
-
-	for (c = copy; *c != '\0'; c++) {
-		if (*c == '~') {
-			c++;
-			while (*c != '~') c++;
-		} else {
-			str[newIdx++] = *c;
-		}
-	}
-	str[newIdx] = '\0';
-}
 
 void
 CFont::DrawFonts(void)
 {
-	RenderFontBuffer();
+	CSprite2d::DrawBank(Details.bank);
+	CSprite2d::DrawBank(Details.bank+1);
+	CSprite2d::DrawBank(Details.bank+2);
+#ifdef MORE_LANGUAGES
+	if (IsJapanese())
+		CSprite2d::DrawBank(Details.bank+3);
+#endif
 }
+
+wchar
+CFont::character_code(uint8 c)
+{
+	if(c < 128)
+		return c;
+	return foreign_table[c-128];
+}
+
 
 void
 CFont::SetScale(float x, float y)
@@ -1755,16 +1347,9 @@ CFont::SetScale(float x, float y)
 }
 
 void
-CFont::SetSlantRefPoint(float x, float y)
+CFont::SetBackgroundColor(CRGBA col)
 {
-	Details.slantRefX = x;
-	Details.slantRefY = y;
-}
-
-void
-CFont::SetSlant(float s)
-{
-	Details.slant = s;
+	Details.backgroundColor = col;
 }
 
 void
@@ -1776,163 +1361,9 @@ CFont::SetColor(CRGBA col)
 }
 
 void
-CFont::SetJustifyOn(void)
-{
-	Details.justify = true;
-	Details.centre = false;
-	Details.rightJustify = false;
-}
-
-void
-CFont::SetJustifyOff(void)
-{
-	Details.justify = false;
-	Details.rightJustify = false;
-}
-
-void
-CFont::SetCentreOn(void)
-{
-	Details.centre = true;
-	Details.justify = false;
-	Details.rightJustify = false;
-}
-
-void
-CFont::SetCentreOff(void)
-{
-	Details.centre = false;
-}
-
-void
-CFont::SetWrapx(float x)
-{
-	Details.wrapX = x;
-}
-
-void
-CFont::SetCentreSize(float s)
-{
-	Details.centreSize = s;
-}
-
-void
-CFont::SetBackgroundOn(void)
-{
-	Details.background = true;
-}
-
-void
-CFont::SetBackgroundOff(void)
-{
-	Details.background = false;
-}
-
-void
-CFont::SetBackgroundColor(CRGBA col)
-{
-	Details.backgroundColor = col;
-}
-
-void
-CFont::SetBackGroundOnlyTextOn(void)
-{
-	Details.backgroundOnlyText = true;
-}
-
-void
-CFont::SetBackGroundOnlyTextOff(void)
-{
-	Details.backgroundOnlyText = false;
-}
-
-void
-CFont::SetRightJustifyOn(void)
-{
-	Details.rightJustify = true;
-	Details.justify = false;
-	Details.centre = false;
-}
-
-void
-CFont::SetRightJustifyOff(void)
-{
-	Details.rightJustify = false;
-	Details.justify = false;
-	Details.centre = false;
-}
-
-void
-CFont::SetPropOff(void)
-{
-	Details.proportional = false;
-}
-
-void
-CFont::SetPropOn(void)
-{
-	Details.proportional = true;
-}
-
-void
-CFont::SetFontStyle(int16 style)
-{
-	if (style == FONT_HEADING) {
-		Details.style = FONT_STANDARD;
-		Details.bFontHalfTexture = true;
-	} else {
-		Details.style = style;
-		Details.bFontHalfTexture = false;
-	}
-}
-
-void
-CFont::SetRightJustifyWrap(float wrap)
-{
-	Details.rightJustifyWrap = wrap;
-}
-
-void
-CFont::SetAlphaFade(float fade)
-{
-	Details.alphaFade = fade;
-}
-
-void
 CFont::SetDropColor(CRGBA col)
 {
 	Details.dropColor = col;
 	if (Details.alphaFade < 255.0f)
 		Details.dropColor.a *= Details.alphaFade / 255.0f;
-}
-
-void
-CFont::SetDropShadowPosition(int16 pos)
-{
-	Details.dropShadowPosition = pos;
-}
-
-wchar CFont::FindNewCharacter(wchar c)
-{
-	if (c >= 16 && c <= 26) return c + 128;
-	if (c >= 8 && c <= 9) return c + 86;
-	if (c == 4) return c + 89;
-	if (c == 7) return 206;
-	if (c == 14) return 207;
-	if (c >= 33 && c <= 58) return c + 122;
-	if (c >= 65 && c <= 90) return c + 90;
-	if (c >= 96 && c <= 118) return c + 85;
-	if (c >= 119 && c <= 140) return c + 62;
-	if (c >= 141 && c <= 142) return 204;
-	if (c == 143) return 205;
-	if (c == 1) return 208;
-	return c;
-}
-
-wchar
-CFont::character_code(uint8 c)
-{
-	if(c < 128)
-		return c;
-	return foreign_table[c-128];
 }

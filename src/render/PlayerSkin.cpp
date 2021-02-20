@@ -74,7 +74,6 @@ LoadPlayerDff(void)
 void
 CPlayerSkin::Initialise(void)
 {
-	// empty on PS2
 	m_txdSlot = CTxdStore::AddTxdSlot("skin");
 	CTxdStore::Create(m_txdSlot);
 	CTxdStore::AddRef(m_txdSlot);
@@ -83,7 +82,6 @@ CPlayerSkin::Initialise(void)
 void
 CPlayerSkin::Shutdown(void)
 {
-	// empty on PS2
 	CTxdStore::RemoveTxdSlot(m_txdSlot);
 }
 
@@ -100,7 +98,7 @@ CPlayerSkin::GetSkinTexture(const char *texName)
 	CTxdStore::PopCurrentTxd();
 	if (tex != nil) return tex;
 
-	if (strcmp(DEFAULT_SKIN_NAME, texName) == 0 || texName[0] == '\0')
+	if (strcmp(DEFAULT_SKIN_NAME, texName) == 0)
 		sprintf(gString, "models\\generic\\player.bmp");
 	else
 		sprintf(gString, "skins\\%s.bmp", texName);
@@ -112,7 +110,9 @@ CPlayerSkin::GetSkinTexture(const char *texName)
 
 		tex = RwTextureCreate(raster);
 		RwTextureSetName(tex, texName);
-		RwTextureSetFilterMode(tex, rwFILTERLINEAR);
+#ifdef FIX_BUGS
+		RwTextureSetFilterMode(tex, rwFILTERLINEAR); // filtering bugfix from VC
+#endif
 		RwTexDictionaryAddTexture(CTxdStore::GetSlot(m_txdSlot)->texDict, tex);
 
 		RwImageDestroy(image);
@@ -144,7 +144,8 @@ CPlayerSkin::RenderFrontendSkinEdit(void)
 	static float rotation = 0.0f;
 	RwRGBAReal AmbientColor = { 0.65f, 0.65f, 0.65f, 1.0f };
 	const RwV3d pos = { 1.35f, 0.35f, 7.725f };
-	const RwV3d axis = { 0.0f, 1.0f, 0.0f };
+	const RwV3d axis1 = { 1.0f, 0.0f, 0.0f };
+	const RwV3d axis2 = { 0.0f, 0.0f, 1.0f };
 	static uint32 LastFlash = 0;
 
 	RwFrame *frame = RpClumpGetFrame(gpPlayerClump);
@@ -157,7 +158,8 @@ CPlayerSkin::RenderFrontendSkinEdit(void)
 	}
 	RwFrameTransform(frame, RwFrameGetMatrix(RwCameraGetFrame(Scene.camera)), rwCOMBINEREPLACE);
 	RwFrameTranslate(frame, &pos, rwCOMBINEPRECONCAT);
-	RwFrameRotate(frame, &axis, rotation, rwCOMBINEPRECONCAT);
+	RwFrameRotate(frame, &axis1, -90.0f, rwCOMBINEPRECONCAT);
+	RwFrameRotate(frame, &axis2, rotation, rwCOMBINEPRECONCAT);
 	RwFrameUpdateObjects(frame);
 	SetAmbientColours(&AmbientColor);
 	RpClumpRender(gpPlayerClump);

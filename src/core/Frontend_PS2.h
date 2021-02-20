@@ -161,10 +161,8 @@ public:
 	static CONTRCONFIG m_PrefsControllerConfig;
 	static bool m_PrefsUseVibration;
 
-#ifdef CUTSCENE_BORDERS_SWITCH
-	static bool m_PrefsCutsceneBorders;
-#endif
-
+#define ISLAND_LOADING_IS(p)
+#define ISLAND_LOADING_ISNT(p)
 #ifdef GTA_PC
 	bool m_bQuitGameNoCD;
 	

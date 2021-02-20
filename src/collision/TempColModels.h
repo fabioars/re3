@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ColModel.h"
+#include "Collision.h"
 
 class CTempColModels
 {
@@ -18,7 +18,6 @@ public:
 	static CColModel ms_colModelBoot1;
 	static CColModel ms_colModelDoor1;
 	static CColModel ms_colModelBonnet1;
-	static CColModel ms_colModelWeapon;
 
 	static void Initialise(void);
 };

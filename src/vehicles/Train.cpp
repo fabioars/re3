@@ -41,7 +41,6 @@ static bool bTrainArrivalAnnounced[3] = {false, false, false};
 CTrain::CTrain(int32 id, uint8 CreatedBy)
  : CVehicle(CreatedBy)
 {
-#ifdef GTA_TRAIN
 	CVehicleModelInfo *mi = (CVehicleModelInfo*)CModelInfo::GetModelInfo(id);
 	m_vehType = VEHICLE_TYPE_TRAIN;
 	pHandling = mod_HandlingManager.GetHandlingData((tVehicleType)mi->m_handlingId);
@@ -68,28 +67,22 @@ CTrain::CTrain(int32 id, uint8 CreatedBy)
 #ifdef FIX_BUGS
 	m_isFarAway = true;
 #endif
-#else
-	assert(0 && "No trains in this game");
-#endif
 }
 
 void
 CTrain::SetModelIndex(uint32 id)
 {
-#ifdef GTA_TRAIN
 	int i;
 
 	CVehicle::SetModelIndex(id);
 	for(i = 0; i < NUM_TRAIN_NODES; i++)
 		m_aTrainNodes[i] = nil;
 	CClumpModelInfo::FillFrameArray(GetClump(), m_aTrainNodes);
-#endif
 }
 
 void
 CTrain::ProcessControl(void)
 {
-#ifdef GTA_TRAIN
 	if(gbModelViewer || m_isFarAway && (CTimer::GetFrameCounter() + m_nWagonId) & 0xF)
 		return;
 
@@ -292,13 +285,11 @@ CTrain::ProcessControl(void)
 				TrainHitStuff(s->m_lists[ENTITYLIST_PEDS_OVERLAP]);
 			}
 	}
-#endif GTA_TRAIN
 }
 
 void
 CTrain::PreRender(void)
 {
-#ifdef GTA_TRAIN
 	CVehicleModelInfo *mi = (CVehicleModelInfo*)CModelInfo::GetModelInfo(GetModelIndex());
 
 	if(m_bIsFirstWagon){
@@ -358,21 +349,17 @@ CTrain::PreRender(void)
 			CCoronas::TYPE_NORMAL, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
 			CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
 	}
-#endif
 }
 
 void
 CTrain::Render(void)
 {
-#ifdef GTA_TRAIN
 	CEntity::Render();
-#endif
 }
 
 void
 CTrain::TrainHitStuff(CPtrList &list)
 {
-#ifdef GTA_TRAIN
 	CPtrNode *node;
 	CPhysical *phys;
 
@@ -381,14 +368,12 @@ CTrain::TrainHitStuff(CPtrList &list)
 		if(phys != this && Abs(this->GetPosition().z - phys->GetPosition().z) < 1.5f)
 			phys->bHitByTrain = true;
 	}
-#endif
 }
 
 void
 CTrain::AddPassenger(CPed *ped)
 {
-#ifdef GTA_TRAIN
-	int i = ped->m_vehDoor;
+	int i = ped->m_vehEnterType;
 	if((i == TRAIN_POS_LEFT_ENTRY || i == TRAIN_POS_MID_ENTRY || i == TRAIN_POS_RIGHT_ENTRY) && pPassengers[i] == nil){
 		pPassengers[i] = ped;
 		m_nNumPassengers++;
@@ -400,13 +385,11 @@ CTrain::AddPassenger(CPed *ped)
 				return;
 			}
 	}
-#endif
 }
 
 void
 CTrain::OpenTrainDoor(float ratio)
 {
-#ifdef GTA_TRAIN
 	if(m_rwObject == nil)
 		return;
 
@@ -431,7 +414,6 @@ CTrain::OpenTrainDoor(float ratio)
 
 	doorL.UpdateRW();
 	doorR.UpdateRW();
-#endif
 }
 
 
@@ -439,7 +421,6 @@ CTrain::OpenTrainDoor(float ratio)
 void
 CTrain::InitTrains(void)
 {
-#ifdef GTA_TRAIN
 	int i, j;
 	CTrain *train;
 
@@ -506,25 +487,21 @@ CTrain::InitTrains(void)
 		for(j = 0; pTrackNodes_S[j].t < StationDist_S[i]; j++);
 		aStationCoors_S[i] = pTrackNodes_S[j].p;
 	}
-#endif
 }
 
 void
 CTrain::Shutdown(void)
 {
-#ifdef GTA_TRAIN
 	delete[] pTrackNodes;
 	delete[] pTrackNodes_S;
 	pTrackNodes = nil;
 	pTrackNodes_S = nil;
-#endif
 }
 
 void
 CTrain::ReadAndInterpretTrackFile(Const char *filename, CTrainNode **nodes, int16 *numNodes, int32 numStations, float *stationDists,
 		float *totalLength, float *totalDuration, CTrainInterpolationLine *interpLines, bool rightRail)
 {
-#ifdef GTA_TRAIN
 	bool readingFile = false;
 	int bp, lp;
 	int i, tmp;
@@ -646,7 +623,6 @@ CTrain::ReadAndInterpretTrackFile(Const char *filename, CTrainNode **nodes, int1
 
 	// end
 	interpLines[j].time = *totalDuration;
-#endif
 }
 
 void
@@ -663,7 +639,6 @@ PlayAnnouncement(uint8 sound, uint8 station)
 void
 ProcessTrainAnnouncements(void)
 {
-#ifdef GTA_TRAIN
 	for (int i = 0; i < ARRAY_SIZE(StationDist); i++) {
 		for (int j = 0; j < ARRAY_SIZE(EngineTrackPosition); j++) {
 			if (!bTrainArrivalAnnounced[i]) {
@@ -692,13 +667,11 @@ ProcessTrainAnnouncements(void)
 			}
 		}
 	}
-#endif
 }
 
 void
 CTrain::UpdateTrains(void)
 {
-#ifdef GTA_TRAIN
 	int i, j;
 	uint32 time;
 	float t, deltaT;
@@ -762,5 +735,4 @@ CTrain::UpdateTrains(void)
 		// time offset for each train
 		time += 0x40000/4;
 	}
-#endif
 }

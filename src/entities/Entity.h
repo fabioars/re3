@@ -6,7 +6,7 @@
 struct CReference;
 class CPtrList;
 
-enum eEntityType
+enum eEntityType : uint8
 {
 	ENTITY_TYPE_NOTHING = 0,
 	ENTITY_TYPE_BUILDING,
@@ -16,7 +16,7 @@ enum eEntityType
 	ENTITY_TYPE_DUMMY,
 };
 
-enum eEntityStatus
+enum eEntityStatus : uint8
 {
 	STATUS_PLAYER,
 	STATUS_PLAYER_PLAYBACKFROMBUFFER,
@@ -30,7 +30,6 @@ enum eEntityStatus
 	STATUS_PLANE,
 	STATUS_PLAYER_REMOTE,
 	STATUS_PLAYER_DISABLED,
-	STATUS_GHOST
 };
 
 class CEntity : public CPlaceable
@@ -60,51 +59,45 @@ public:
 	uint32 bRenderScorched : 1;
 	uint32 bHasBlip : 1;
 	uint32 bIsBIGBuilding : 1;			// Set if this entity is a big building
-	uint32 bStreamBIGBuilding : 1;	// set when draw dist <= 2000
+	uint32 bRenderDamaged : 1;			// use damaged LOD models for objects with applicable damage
 
 	// flagsC
-	uint32 bRenderDamaged : 1;			// use damaged LOD models for objects with applicable damage
 	uint32 bBulletProof : 1;
 	uint32 bFireProof : 1;
 	uint32 bCollisionProof : 1;
 	uint32 bMeleeProof : 1;
 	uint32 bOnlyDamagedByPlayer : 1;
 	uint32 bStreamingDontDelete : 1;	// Dont let the streaming remove this 
-	uint32 bRemoveFromWorld : 1;		// remove this entity next time it should be processed
+	uint32 bZoneCulled : 1;
+	uint32 bZoneCulled2 : 1;    // only treadables+10m
 
 	// flagsD
+	uint32 bRemoveFromWorld : 1;		// remove this entity next time it should be processed
 	uint32 bHasHitWall : 1;				// has collided with a building (changes subsequent collisions)
 	uint32 bImBeingRendered : 1;		// don't delete me because I'm being rendered
 	uint32 bTouchingWater : 1;	// used by cBuoyancy::ProcessBuoyancy
 	uint32 bIsSubway : 1;	// set when subway, but maybe different meaning?
 	uint32 bDrawLast : 1;				// draw object last
 	uint32 bNoBrightHeadLights : 1;
-	uint32 bDoNotRender : 1;	//-- only applies to CObjects apparently
-	uint32 bDistanceFade : 1;			// Fade entity because it is far away
+	uint32 bDoNotRender : 1;
 
 	// flagsE
-	uint32 m_flagE1 : 1;
+	uint32 bDistanceFade : 1;			// Fade entity because it is far away
 	uint32 m_flagE2 : 1;
-	uint32 bOffscreen : 1;               // offscreen flag. This can only be trusted when it is set to true
-	uint32 bIsStaticWaitingForCollision : 1; // this is used by script created entities - they are static until the collision is loaded below them
-	uint32 bDontStream : 1;              // tell the streaming not to stream me
-	uint32 bUnderwater : 1;              // this object is underwater change drawing order
-	uint32 bHasPreRenderEffects : 1; // Object has a prerender effects attached to it
 
 	uint16 m_scanCode;
 	uint16 m_randomSeed;
 	int16 m_modelIndex;
-	int8 m_level;
-	int8 m_area;
+	uint16 m_level;	// int16
 	CReference *m_pFirstReference;
 
 public:
-	uint8 GetType() const { return m_type; }
-	void SetType(uint8 type) { m_type = type; }
-	uint8 GetStatus() const { return m_status; }
-	void SetStatus(uint8 status) { m_status = status; }
+	eEntityType GetType() const { return (eEntityType)m_type; }
+	void SetType(eEntityType type) { m_type = type; }
+	eEntityStatus GetStatus() const { return (eEntityStatus)m_status; }
+	void SetStatus(eEntityStatus status) { m_status = status; }
 	CColModel *GetColModel(void) { return CModelInfo::GetModelInfo(m_modelIndex)->GetColModel(); }
-	bool GetIsStatic(void) const { return bIsStatic || bIsStaticWaitingForCollision; }
+	bool GetIsStatic(void) const { return bIsStatic; }
 	void SetIsStatic(bool state) { bIsStatic = state; }
 #ifdef COMPATIBLE_SAVES
 	void SaveEntityFlags(uint8*& buf);
@@ -114,12 +107,12 @@ public:
 #endif
 
 	CEntity(void);
-	virtual ~CEntity(void);
+	~CEntity(void);
 
 	virtual void Add(void);
 	virtual void Remove(void);
-	virtual void SetModelIndex(uint32 id);
-	virtual void SetModelIndexNoCreate(uint32 id);
+	virtual void SetModelIndex(uint32 id) { m_modelIndex = id; CreateRwObject(); }
+	virtual void SetModelIndexNoCreate(uint32 id) { m_modelIndex = id; }
 	virtual void CreateRwObject(void);
 	virtual void DeleteRwObject(void);
 	virtual CRect GetBoundRect(void);
@@ -130,7 +123,7 @@ public:
 	virtual void PreRender(void);
 	virtual void Render(void);
 	virtual bool SetupLighting(void);
-	virtual void RemoveLighting(bool);
+	virtual void RemoveLighting(bool) {}
 	virtual void FlagToDestroyWhenNextProcessed(void) {}
 
 	bool IsBuilding(void) { return m_type == ENTITY_TYPE_BUILDING; }
@@ -149,19 +142,17 @@ public:
 	}
 
 	void GetBoundCentre(CVector &out);
-	CVector GetBoundCentre(void);
-	float GetBoundRadius(void);
-	float GetDistanceFromCentreOfMassToBaseOfModel(void);
+	CVector GetBoundCentre(void) { CVector v; GetBoundCentre(v); return v; }
+	float GetBoundRadius(void) { return CModelInfo::GetModelInfo(m_modelIndex)->GetColModel()->boundingSphere.radius; }
+	float GetDistanceFromCentreOfMassToBaseOfModel(void) { return -CModelInfo::GetModelInfo(m_modelIndex)->GetColModel()->boundingBox.min.z; }
 	bool GetIsTouching(CVector const &center, float r);
 	bool GetIsOnScreen(void);
 	bool GetIsOnScreenComplex(void);
-	bool IsVisible(void);
-	bool IsVisibleComplex(void);
-	bool IsEntityOccluded(void);
+	bool IsVisible(void) { return m_rwObject && bIsVisible && GetIsOnScreen(); }
+	bool IsVisibleComplex(void) { return m_rwObject && bIsVisible && GetIsOnScreenComplex(); }
 	int16 GetModelIndex(void) const { return m_modelIndex; }
 	void UpdateRwFrame(void);
 	void SetupBigBuilding(void);
-	bool HasPreRenderEffects(void);
 
 	void AttachToRwObject(RwObject *obj);
 	void DetachFromRwObject(void);
@@ -169,16 +160,18 @@ public:
 	void RegisterReference(CEntity **pent);
 	void ResolveReferences(void);
 	void PruneReferences(void);
-	void CleanUpOldReference(CEntity **pent);
 
+#ifdef PED_SKIN
 	void UpdateRpHAnim(void);
+#endif
 
 	void PreRenderForGlassWindow(void);
 	void AddSteamsFromGround(CVector *unused);
 	void ModifyMatrixForTreeInWind(void);
 	void ModifyMatrixForBannerInWind(void);
 	void ProcessLightsForEntity(void);
-	void SetRwObjectAlpha(int32 alpha);
+
+	static void AddSteamsFromGround(CPtrList& list);
 };
 
-bool IsEntityPointerValid(CEntity*);
+VALIDATE_SIZE(CEntity, 0x64);

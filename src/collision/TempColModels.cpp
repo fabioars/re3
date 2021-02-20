@@ -1,7 +1,6 @@
 #include "common.h"
 
 #include "TempColModels.h"
-#include "Game.h"
 
 CColModel CTempColModels::ms_colModelPed1;
 CColModel CTempColModels::ms_colModelPed2;
@@ -16,7 +15,6 @@ CColModel CTempColModels::ms_colModelPedGroundHit;
 CColModel CTempColModels::ms_colModelBoot1;
 CColModel CTempColModels::ms_colModelDoor1;
 CColModel CTempColModels::ms_colModelBonnet1;
-CColModel CTempColModels::ms_colModelWeapon;
 
 
 CColSphere s_aPedSpheres[3];
@@ -42,7 +40,7 @@ CTempColModels::Initialise(void)
 	colmodel.numSpheres = ARRAY_SIZE(sphrs);\
 	colmodel.spheres = sphrs;\
 	colmodel.level = LEVEL_GENERIC;\
-	colmodel.ownsCollisionVolumes = false;
+	colmodel.ownsCollisionVolumes = false;\
 
 	int i;
 
@@ -293,14 +291,6 @@ CTempColModels::Initialise(void)
 	ms_colModelBodyPart2.boundingBox.Set(CVector(-0.2f, -0.2f, -0.2f), CVector(0.7f, 0.2f, 0.2f));
 
 	SET_COLMODEL_SPHERES(ms_colModelBodyPart2, s_aBodyPartSpheres2);
-
-	ms_colModelWeapon.boundingSphere.radius = 0.25f;
-	ms_colModelWeapon.boundingBox.min.x = -0.25f;
-	ms_colModelWeapon.boundingBox.min.y = -0.25f;
-	ms_colModelWeapon.boundingBox.min.z = -0.25f;
-	ms_colModelWeapon.boundingBox.max.x = 0.25f;
-	ms_colModelWeapon.boundingBox.max.y = 0.25f;
-	ms_colModelWeapon.boundingBox.max.z = 0.25f;
 
 #undef SET_COLMODEL_SPHERES
 }

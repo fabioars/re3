@@ -3,7 +3,7 @@
 #include "MemoryMgr.h"
 
 
-uint8 *pMemoryTop;
+void *pMemoryTop;
 
 void
 InitMemoryMgr(void)
@@ -42,8 +42,8 @@ MemoryMgrMalloc(size_t size)
 #else
 	void *mem = malloc(size);
 #endif
-	if((uint8*)mem + size > pMemoryTop)
-		pMemoryTop = (uint8*)mem + size ;
+	if(mem > pMemoryTop)
+		pMemoryTop = mem;
 	return mem;
 }
 
@@ -55,8 +55,8 @@ MemoryMgrRealloc(void *ptr, size_t size)
 #else
 	void *mem = realloc(ptr, size);
 #endif
-	if((uint8*)mem + size  > pMemoryTop)
-		pMemoryTop = (uint8*)mem + size ;
+	if(mem > pMemoryTop)
+		pMemoryTop = mem;
 	return mem;
 }
 
@@ -68,8 +68,8 @@ MemoryMgrCalloc(size_t num, size_t size)
 #else
 	void *mem = calloc(num, size);
 #endif
-	if((uint8*)mem + size  > pMemoryTop)
-		pMemoryTop = (uint8*)mem + size ;
+	if(mem > pMemoryTop)
+		pMemoryTop = mem;
 #ifdef FIX_BUGS
 	memset(mem, 0, num*size);
 #endif
@@ -93,7 +93,7 @@ MemoryMgrFree(void *ptr)
 void *
 RwMallocAlign(RwUInt32 size, RwUInt32 align)
 {
-#if defined (FIX_BUGS) || defined(FIX_BUGS_64)
+#ifdef FIX_BUGS
 	uintptr ptralign = align-1;
 	void *mem = (void *)MemoryMgrMalloc(size + sizeof(uintptr) + ptralign);
 

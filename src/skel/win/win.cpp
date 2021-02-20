@@ -1,7 +1,8 @@
-#if defined RW_D3D9 || defined RWLIBS || defined __MWERKS__
+#if defined RW_D3D9 || defined RWLIBS
 
 #define _WIN32_WINDOWS 0x0500
 #define WINVER 0x0500
+#define DIRECTINPUT_VERSION 0x0800
 
 #include <winerror.h>
 #include <windows.h>
@@ -19,11 +20,13 @@
 #pragma warning( push )
 #pragma warning( disable : 4005)
 
-#ifdef __MWERKS__
-#define MAPVK_VK_TO_CHAR (2) // this is missing from codewarrior win32 headers - but it gets used ... how?
+#ifdef USE_D3D9
+#include <d3d9.h>
+#else
+#include <d3d8.h>
 #endif
-
 #include <ddraw.h>
+#include <dinput.h>
 #include <DShow.h>
 #pragma warning( pop )
 
@@ -38,9 +41,6 @@
 #pragma comment( lib, "strmiids.lib" )
 #pragma comment( lib, "dinput8.lib" )
 
-#define WITHD3D
-#define WITHDINPUT
-#include "common.h"
 #if (defined(_MSC_VER))
 #include <tchar.h>
 #endif /* (defined(_MSC_VER)) */
@@ -52,6 +52,7 @@
 #include "crossplatform.h"
 
 #define MAX_SUBSYSTEMS		(16)
+
 
 static RwBool		  ForegroundApp = TRUE;
 
@@ -81,6 +82,7 @@ static psGlobalType PsGlobal;
 #define JIF(x) if (FAILED(hr=(x))) \
 	{debug(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n"), hr); return;}
 
+#include "common.h"
 #include "main.h"
 #include "FileMgr.h"
 #include "Text.h"
@@ -91,14 +93,12 @@ static psGlobalType PsGlobal;
 #include "Frontend.h"
 #include "Game.h"
 #include "PCSave.h"
+#include "MemoryCard.h"
+#include "Sprite2d.h"
 #include "AnimViewer.h"
+#include "Font.h"
 #include "MemoryMgr.h"
 
-#ifdef PS2_MENU
-#include "MemoryCard.h"
-#include "Font.h"
-#endif
-	
 VALIDATE_SIZE(psGlobalType, 0x28);
 
 // DirectShow interfaces
@@ -119,10 +119,6 @@ DWORD _dwOperatingSystemVersion;
 
 RwUInt32 gGameState;
 CJoySticks AllValidWinJoys;
-
-#ifdef DETECT_JOYSTICK_MENU
-char gSelectedJoystickName[128] = "";
-#endif
 
 // What is that for anyway?
 #ifndef IMPROVED_VIDEOMODE
@@ -194,7 +190,7 @@ const char *_psGetUserFilesFolder()
 							&KeycbData) == ERROR_SUCCESS )
 		{
 			RegCloseKey(hKey);
-			strcat(szUserFiles, "\\GTA Vice City User Files");
+			strcat(szUserFiles, "\\GTA3 User Files");
 			_psCreateFolder(szUserFiles);
 			return szUserFiles;
 		}	
@@ -234,11 +230,7 @@ psCameraBeginUpdate(RwCamera *camera)
 void
 psCameraShowRaster(RwCamera *camera)
 {
-#ifdef LEGACY_MENU_OPTIONS
-	if (FrontEndMenuManager.m_PrefsVsync || FrontEndMenuManager.m_bMenuActive)
-#else
-	if (FrontEndMenuManager.m_PrefsFrameLimiter || FrontEndMenuManager.m_bMenuActive)
-#endif
+	if (CMenuManager::m_PrefsVsync)
 		RwCameraShowRaster(camera, PSGLOBAL(window), rwRASTERFLIPWAITVSYNC);
 	else
 		RwCameraShowRaster(camera, PSGLOBAL(window), rwRASTERFLIPDONTWAIT);
@@ -260,11 +252,6 @@ psGrabScreen(RwCamera *pCamera)
 		RwImageSetFromRaster(pImage, pRaster);
 		return pImage;
 	}
-#else
-	rw::Image *image = RwCameraGetRaster(pCamera)->toImage();
-	image->removeMask();
-	if(image)
-		return image;
 #endif
 	return nil;
 }
@@ -582,9 +569,6 @@ _RETEX:
 	}
 }
 
-#ifdef __MWERKS__
-#pragma dont_inline on
-#endif
 void _psPrintCpuInfo()
 {
 	RwUInt32 features	= _psGetCpuFeatures();
@@ -599,9 +583,6 @@ void _psPrintCpuInfo()
 	if ( FeaturesEx & 0x80000000 )
 		debug("with 3DNow");
 }
-#ifdef __MWERKS__
-#pragma dont_inline off
-#endif
 #endif
 
 /*
@@ -670,6 +651,10 @@ psInitialize(void)
 	C_PcSave::SetSaveDirectory(_psGetUserFilesFolder());
 	
 	InitialiseLanguage();
+#if GTA_VERSION >= GTA3_PC_11
+	FrontEndMenuManager.LoadSettings();
+#endif
+
 #endif
 	
 	gGameState = GS_START_UP;
@@ -717,7 +702,11 @@ psInitialize(void)
 	}
 
 #ifndef PS2_MENU
+
+#if GTA_VERSION >= GTA3_PC_11
 	FrontEndMenuManager.LoadSettings();
+#endif
+
 #endif
 
 	dwDXVersion = GetDXVersion();
@@ -957,7 +946,8 @@ void HandleGraphEvent(void)
 
 /*
  *****************************************************************************
- */ 
+ */
+ 
 LRESULT CALLBACK
 MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -1027,12 +1017,17 @@ MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 			RECT				rect;
 
 			/* redraw window */
-
+#ifndef MASTER
+			if (RwInitialised && (gGameState == GS_PLAYING_GAME || gGameState == GS_ANIMVIEWER))
+			{
+				RsEventHandler((gGameState == GS_PLAYING_GAME ? rsIDLE : rsANIMVIEWER), (void *)TRUE);
+			}
+#else
 			if (RwInitialised && gGameState == GS_PLAYING_GAME)
 			{
 				RsEventHandler(rsIDLE, (void *)TRUE);
 			}
-
+#endif
 			/* Manually resize window */
 			rect.left = rect.top = 0;
 			rect.bottom = newPos->bottom - newPos->top;
@@ -1303,16 +1298,6 @@ MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 
-#ifdef FIX_BUGS // game turns on menu when focus is re-gained rather than lost
-		case WM_KILLFOCUS:
-#else
-		case WM_SETFOCUS:
-#endif
-		{
-			CGame::InitAfterFocusLoss();
-			break;
-		}
-
 	}
 
 	/*
@@ -1320,6 +1305,7 @@ MainWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	 */
 	return DefWindowProc(window, message, wParam, lParam);
 }
+
 
 /*
  *****************************************************************************
@@ -1339,7 +1325,7 @@ InitApplication(HANDLE instance)
 	windowClass.cbClsExtra = 0;
 	windowClass.cbWndExtra = 0;
 	windowClass.hInstance = (HINSTANCE)instance;
-	windowClass.hIcon = LoadIcon((HINSTANCE)instance, (LPCSTR)IDI_MAIN_ICON);
+	windowClass.hIcon = nil;
 	windowClass.hCursor = LoadCursor(nil, IDC_ARROW);
 	windowClass.hbrBackground = nil;
 	windowClass.lpszMenuName = NULL;
@@ -1395,7 +1381,10 @@ UINT GetBestRefreshRate(UINT width, UINT height, UINT depth)
 		if ( mode.Width == width && mode.Height == height && mode.Format == format )
 		{
 			if ( mode.RefreshRate == 0 ) {
+				// From VC
+#ifdef FIX_BUGS
 				d3d->Release();
+#endif
 				return 0;
 			}
 
@@ -1404,7 +1393,10 @@ UINT GetBestRefreshRate(UINT width, UINT height, UINT depth)
 		}
 	}
 	
+	// From VC
+#ifdef FIX_BUGS
 	d3d->Release();
+#endif
 	
 	if ( refreshRate == -1 )
 		return -1;
@@ -1675,6 +1667,7 @@ RwBool _psSetVideoMode(RwInt32 subSystem, RwInt32 videoMode)
 	return TRUE;
 }
  
+ 
 /*
  *****************************************************************************
  */
@@ -1785,7 +1778,7 @@ void InitialiseLanguage()
 		|| primLayout	  == LANG_GERMAN )
 	{
 		CGame::nastyGame = false;
-		FrontEndMenuManager.m_PrefsAllowNastyGame = false;
+		CMenuManager::m_PrefsAllowNastyGame = false;
 		CGame::germanGame = true;
 	}
 	
@@ -1794,7 +1787,7 @@ void InitialiseLanguage()
 		|| primLayout	  == LANG_FRENCH )
 	{
 		CGame::nastyGame = false;
-		FrontEndMenuManager.m_PrefsAllowNastyGame = false;
+		CMenuManager::m_PrefsAllowNastyGame = false;
 		CGame::frenchGame = true;
 	}
 	
@@ -1805,7 +1798,7 @@ void InitialiseLanguage()
 
 #ifdef NASTY_GAME
 	CGame::nastyGame = true;
-	FrontEndMenuManager.m_PrefsAllowNastyGame = true;
+	CMenuManager::m_PrefsAllowNastyGame = true;
 	CGame::noProstitutes = false;
 #endif
 	
@@ -1840,33 +1833,33 @@ void InitialiseLanguage()
 		}
 	}
 	
-	FrontEndMenuManager.OS_Language = primUserLCID;
+	CMenuManager::OS_Language = primUserLCID;
 
 	switch ( lang )
 	{
 		case LANG_GERMAN:
 		{
-			FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_GERMAN;
+			CMenuManager::m_PrefsLanguage = CMenuManager::LANGUAGE_GERMAN;
 			break;
 		}
 		case LANG_SPANISH:
 		{
-			FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_SPANISH;
+			CMenuManager::m_PrefsLanguage = CMenuManager::LANGUAGE_SPANISH;
 			break;
 		}
 		case LANG_FRENCH:
 		{
-			FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_FRENCH;
+			CMenuManager::m_PrefsLanguage = CMenuManager::LANGUAGE_FRENCH;
 			break;
 		}
 		case LANG_ITALIAN:
 		{
-			FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_ITALIAN;
+			CMenuManager::m_PrefsLanguage = CMenuManager::LANGUAGE_ITALIAN;
 			break;
 		}
 		default:
 		{
-			FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_AMERICAN;
+			CMenuManager::m_PrefsLanguage = CMenuManager::LANGUAGE_AMERICAN;
 			break;
 		}
 	}
@@ -2086,7 +2079,7 @@ WinMain(HINSTANCE instance,
 	
 	if ( _InputInitialise() == S_OK )
 	{
-		_InputInitialiseMouse(false);
+		_InputInitialiseMouse();
 		_InputInitialiseJoys();
 	}
 	
@@ -2160,15 +2153,8 @@ WinMain(HINSTANCE instance,
 	{
 		CFileMgr::SetDirMyDocuments();
 		
-#ifdef LOAD_INI_SETTINGS
-		// At this point InitDefaultControlConfigJoyPad must have set all bindings to default and ms_padButtonsInited to number of detected buttons.
-		// We will load stored bindings below, but let's cache ms_padButtonsInited before LoadINIControllerSettings and LoadSettings clears it,
-		// so we can add new joy bindings **on top of** stored bindings.
-		int connectedPadButtons = ControlsManager.ms_padButtonsInited;
-#endif
-
-		int32 gta3set = CFileMgr::OpenFile("gta_vc.set", "r");
-
+		int32 gta3set = CFileMgr::OpenFile("gta3.set", "r");
+		
 		if ( gta3set )
 		{
 			ControlsManager.LoadSettings(gta3set);
@@ -2176,14 +2162,6 @@ WinMain(HINSTANCE instance,
 		}
 		
 		CFileMgr::SetDir("");
-
-#ifdef LOAD_INI_SETTINGS
-		LoadINIControllerSettings();
-		if (connectedPadButtons != 0) {
-			ControlsManager.InitDefaultControlConfigJoyPad(connectedPadButtons);
-			SaveINIControllerSettings();
-		}
-#endif
 	}
 	
 	SetErrorMode(SEM_FAILCRITICALERRORS);
@@ -2205,17 +2183,17 @@ WinMain(HINSTANCE instance,
 	}
 #endif
 
+	if (TurnOnAnimViewer)
+	{
 #ifndef MASTER
-	if (gbModelViewer) {
-		// This is TheModelViewer in LCS
-		LoadingScreen("Loading the ModelViewer", NULL, GetRandomSplashScreen());
 		CAnimViewer::Initialise();
-		CTimer::Update();
 #ifndef PS2_MENU
 		FrontEndMenuManager.m_bGameNotLoaded = false;
 #endif
-	}
+		gGameState = GS_ANIMVIEWER;
+		TurnOnAnimViewer = false;
 #endif
+	}
 
 	while ( TRUE )
 	{
@@ -2260,12 +2238,6 @@ WinMain(HINSTANCE instance,
 					DispatchMessage(&message);
 				}
 			}
-#ifndef MASTER
-			else if (gbModelViewer) {
-				// This is TheModelViewerCore in LCS
-				TheModelViewer();
-			}
-#endif
 			else if( ForegroundApp )
 			{
 				switch ( gGameState )
@@ -2273,7 +2245,7 @@ WinMain(HINSTANCE instance,
 					case GS_START_UP:
 					{
 #ifdef NO_MOVIES
-						gGameState = gbNoMovies ? GS_INIT_ONCE : GS_INIT_LOGO_MPEG;
+						gGameState = GS_INIT_ONCE;
 #else
 						gGameState = GS_INIT_LOGO_MPEG;
 #endif
@@ -2296,8 +2268,6 @@ WinMain(HINSTANCE instance,
 
 						if ( startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0 )
 							++gGameState;
-						else if ( CPad::GetPad(0)->NewState.CheckForInput() )
-							++gGameState;
 						else if ( CPad::GetPad(0)->GetLeftMouseJustDown() )
 							++gGameState;
 						else if ( CPad::GetPad(0)->GetEnterJustDown() )
@@ -2314,15 +2284,12 @@ WinMain(HINSTANCE instance,
 					
 					case GS_INIT_INTRO_MPEG:
 					{
-#ifdef NO_MOVIES
-						if (!gbNoMovies)
-#endif
+#ifndef NO_MOVIES
 						CloseClip();
-#ifndef FIX_BUGS
 						CoUninitialize();
 #endif
 						
-						if ( FrontEndMenuManager.OS_Language == LANG_FRENCH || FrontEndMenuManager.OS_Language == LANG_GERMAN )
+						if ( CMenuManager::OS_Language == LANG_FRENCH || CMenuManager::OS_Language == LANG_GERMAN )
 							PlayMovieInWindow(cmdShow, "movies\\GTAtitlesGER.mpg");
 						else
 							PlayMovieInWindow(cmdShow, "movies\\GTAtitles.mpg");
@@ -2337,8 +2304,6 @@ WinMain(HINSTANCE instance,
 						CPad::UpdatePads();
 
 						if ( startupDeactivate || ControlsManager.GetJoyButtonJustDown() != 0 )
-							++gGameState;
-						else if ( CPad::GetPad(0)->NewState.CheckForInput() )
 							++gGameState;
 						else if ( CPad::GetPad(0)->GetLeftMouseJustDown() )
 							++gGameState;
@@ -2356,11 +2321,8 @@ WinMain(HINSTANCE instance,
 					
 					case GS_INIT_ONCE:
 					{
-#ifdef NO_MOVIES
-						if (!gbNoMovies)
-#endif
+#ifndef NO_MOVIES
 						CloseClip();
-#ifndef FIX_BUGS
 						CoUninitialize();
 #endif
 						
@@ -2379,7 +2341,6 @@ WinMain(HINSTANCE instance,
 						printf("Into TheGame!!!\n");
 #else				
 						LoadingScreen(nil, nil, "loadsc0");
-						// LoadingScreen(nil, nil, "loadsc0"); // duplicate
 #endif
 						if ( !CGame::InitialiseOnceAfterRW() )
 							RsGlobal.quit = TRUE;
@@ -2397,11 +2358,10 @@ WinMain(HINSTANCE instance,
 					case GS_INIT_FRONTEND:
 					{
 						LoadingScreen(nil, nil, "loadsc0");
-						// LoadingScreen(nil, nil, "loadsc0"); // duplicate
 						
 						FrontEndMenuManager.m_bGameNotLoaded = true;
 						
-						FrontEndMenuManager.m_bStartUpFrontEndRequested = true;
+						CMenuManager::m_bStartUpFrontEndRequested = true;
 						
 						if ( defaultFullscreenRes )
 						{
@@ -2486,11 +2446,23 @@ WinMain(HINSTANCE instance,
 						float ms = (float)CTimer::GetCurrentTimeInCycles() / (float)CTimer::GetCyclesPerMillisecond();
 						if ( RwInitialised )
 						{
-							if (!FrontEndMenuManager.m_PrefsFrameLimiter || (1000.0f / (float)RsGlobal.maxFPS) < ms)
+							if (!CMenuManager::m_PrefsFrameLimiter || (1000.0f / (float)RsGlobal.maxFPS) < ms)
 								RsEventHandler(rsIDLE, (void *)TRUE);
 						}
 						break;
 					}
+#ifndef MASTER
+					case GS_ANIMVIEWER:
+					{
+						float ms = (float)CTimer::GetCurrentTimeInCycles() / (float)CTimer::GetCyclesPerMillisecond();
+						if (RwInitialised)
+						{
+							if (!CMenuManager::m_PrefsFrameLimiter || (1000.0f / (float)RsGlobal.maxFPS) < ms)
+								RsEventHandler(rsANIMVIEWER, (void*)TRUE);
+						}
+						break;
+					}
+#endif
 				}
 			}
 			else
@@ -2562,14 +2534,13 @@ WinMain(HINSTANCE instance,
 		}
 		else
 		{
-#ifndef MASTER
-			if ( gbModelViewer )
-				CAnimViewer::Shutdown();
-			else
-#endif
 			if ( gGameState == GS_PLAYING_GAME )
 				CGame::ShutDown();
-
+#ifndef MASTER
+			else if ( gGameState == GS_ANIMVIEWER )
+				CAnimViewer::Shutdown();
+#endif
+			
 			CTimer::Stop();
 			
 			if ( FrontEndMenuManager.m_bFirstTime == true )
@@ -2590,13 +2561,12 @@ WinMain(HINSTANCE instance,
 	}
 	
 
-#ifndef MASTER
-	if ( gbModelViewer )
-		CAnimViewer::Shutdown();
-	else
-#endif
 	if ( gGameState == GS_PLAYING_GAME )
 		CGame::ShutDown();
+#ifndef MASTER
+	else if ( gGameState == GS_ANIMVIEWER )
+		CAnimViewer::Shutdown();
+#endif
 
 	DMAudio.Terminate();
 	
@@ -2655,7 +2625,7 @@ HRESULT _InputInitialise()
 	return S_OK;
 }
 
-HRESULT _InputInitialiseMouse(bool exclusive)
+HRESULT _InputInitialiseMouse()
 {
 	HRESULT hr;
 
@@ -2673,7 +2643,7 @@ HRESULT _InputInitialiseMouse(bool exclusive)
 	if( FAILED( hr = PSGLOBAL(mouse)->SetDataFormat( &c_dfDIMouse2 ) ) )
 		return hr;
 	
-	if( FAILED( hr = PSGLOBAL(mouse)->SetCooperativeLevel( PSGLOBAL(window), (exclusive ? DISCL_EXCLUSIVE : DISCL_NONEXCLUSIVE) | DISCL_FOREGROUND ) ) )
+	if( FAILED( hr = PSGLOBAL(mouse)->SetCooperativeLevel( PSGLOBAL(window), DISCL_NONEXCLUSIVE | DISCL_FOREGROUND ) ) )
 		return hr;
 	
 	// Acquire the newly created device
@@ -2959,28 +2929,6 @@ HRESULT _InputGetMouseState(DIMOUSESTATE2 *state)
 void _InputShutdown()
 {
 	SAFE_RELEASE(PSGLOBAL(dinterface));
-}
-
-void _InputShutdownMouse()
-{
-	if (PSGLOBAL(mouse) == nil)
-		return;
-
-	PSGLOBAL(mouse)->Unacquire();
-	SAFE_RELEASE(PSGLOBAL(mouse));
-}
-
-bool _InputMouseNeedsExclusive(void)
-{
-	// FIX: I don't know why R* needed that, but it causes infamous mouse bug on modern systems.
-	//		Probably DirectInput bug, since Acquire() and GetDeviceState() reports everything A-OK.
-#ifdef FIX_BUGS
-	return false;
-#endif
-	RwVideoMode vm;
-	RwEngineGetVideoModeInfo(&vm, GcurSelVM);
-
-	return vm.flags & rwVIDEOMODEEXCLUSIVE;
 }
 
 BOOL CALLBACK _InputEnumDevicesCallback( const DIDEVICEINSTANCE* pdidInstance, VOID* pContext )
@@ -3451,10 +3399,6 @@ BOOL _InputIsExtended(INT flag)
 int strcasecmp(const char *str1, const char *str2)
 {
 	return _strcmpi(str1, str2);
-}
-int strncasecmp(const char *str1, const char *str2, size_t len)
-{
-	return _strnicmp(str1, str2, len);
 }
 #endif
 #endif

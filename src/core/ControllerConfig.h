@@ -32,8 +32,6 @@ enum e_ControllerAction
 	PED_JUMPING,
 	PED_SPRINT,
 	PED_LOOKBEHIND,
-	PED_DUCK,
-	PED_ANSWER_PHONE,
 #ifdef BIND_VEHICLE_FIREWEAPON
 	VEHICLE_FIREWEAPON,
 #endif
@@ -64,7 +62,6 @@ enum e_ControllerAction
 	SWITCH_DEBUG_CAM_ON,
 	TAKE_SCREEN_SHOT,
 	SHOW_MOUSE_POINTER_TOGGLE,
-	UNKNOWN_ACTION,
 	MAX_CONTROLLERACTIONS,
 };
 
@@ -144,10 +141,6 @@ public:
 	tControllerConfigBind m_aSettings[MAX_CONTROLLERACTIONS][MAX_CONTROLLERTYPES];
 	bool                  m_aSimCheckers[MAX_SIMS][MAX_CONTROLLERTYPES];
 	bool                  m_bMouseAssociated;
-
-#ifdef LOAD_INI_SETTINGS
-	static uint32 ms_padButtonsInited;
-#endif
 	
 	CControllerConfigManager();
 
@@ -194,10 +187,6 @@ public:
 	void DeleteMatchingVehicle_3rdPersonControls(e_ControllerAction action, int32 key, eControllerType type);
 	void DeleteMatching1rstPersonControls       (e_ControllerAction action, int32 key, eControllerType type);
 	void DeleteMatchingActionInitiators         (e_ControllerAction action, int32 key, eControllerType type);
-
-#ifdef RADIO_SCROLL_TO_PREV_STATION
-	bool IsAnyVehicleActionAssignedToMouseKey(int32 key);
-#endif 
 
 	bool GetIsKeyBlank(int32 key, eControllerType type);
 	e_ControllerActionType GetActionType(e_ControllerAction action);

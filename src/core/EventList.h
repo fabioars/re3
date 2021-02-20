@@ -22,13 +22,10 @@ enum eEventType
 	EVENT_PED_SET_ON_FIRE,
 	EVENT_COP_SET_ON_FIRE,
 	EVENT_CAR_SET_ON_FIRE,
-	EVENT_ASSAULT_NASTYWEAPON,
-	EVENT_ASSAULT_NASTYWEAPON_POLICE,
-	EVENT_UNK, // Not on SA it seems
+	EVENT_ASSAULT_NASTYWEAPON, // not sure
 	EVENT_ICECREAM,
 	EVENT_ATM,
-	EVENT_SHOPSTALL,
-	EVENT_SHOPWINDOW,
+	EVENT_SHOPSTALL, // used on graffitis
 	EVENT_LAST_EVENT
 };
 
@@ -62,7 +59,7 @@ public:
 	static bool GetEvent(eEventType type, int32 *event);
 	static void ClearEvent(int32 event);
 	static bool FindClosestEvent(eEventType type, CVector posn, int32 *event);
-	static void ReportCrimeForEvent(eEventType type, intptr, bool);
+	static void ReportCrimeForEvent(eEventType type, int32, bool);
 };
 
 extern CEvent gaEvent[NUMEVENTS];

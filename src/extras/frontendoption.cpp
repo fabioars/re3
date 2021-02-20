@@ -13,9 +13,24 @@ int optionCursor = -2;
 int currentMenu;
 bool optionOverwrite = false;
 
-void GoBack()
+void ChangeScreen(int screen, int option, bool fadeIn)
 {
-	FrontEndMenuManager.SwitchToNewScreen(-1);
+	FrontEndMenuManager.m_nPrevScreen = FrontEndMenuManager.m_nCurrScreen;
+	FrontEndMenuManager.m_nCurrScreen = screen;
+	FrontEndMenuManager.m_nCurrOption = option;
+	if (fadeIn)
+		FrontEndMenuManager.m_nMenuFadeAlpha = 0;
+}
+
+void GoBack(bool fadeIn)
+{
+	int screen = !FrontEndMenuManager.m_bGameNotLoaded ?
+		aScreens[FrontEndMenuManager.m_nCurrScreen].m_PreviousPage[1] : aScreens[FrontEndMenuManager.m_nCurrScreen].m_PreviousPage[0];
+	int option = FrontEndMenuManager.GetPreviousPageOption();
+
+	FrontEndMenuManager.ThingsToDoBeforeGoingBack();
+
+	ChangeScreen(screen, option, fadeIn);
 }
 
 uint8
@@ -36,7 +51,7 @@ GetLastMenuScreen()
 {
 	int8 page = -1;
 	for (int i = 0; i < MENUPAGES; i++) {
-		if (strcmp(aScreens[i].m_ScreenName, "") == 0 && aScreens[i].m_PreviousPage == MENUPAGE_NONE)
+		if (strcmp(aScreens[i].m_ScreenName, "") == 0 && aScreens[i].m_PreviousPage[0] == MENUPAGE_NONE)
 			break;
 
 		++page;
@@ -53,7 +68,7 @@ int8 RegisterNewScreen(const char *name, int prevPage, ReturnPrevPageFunc return
 	int id = lastOgScreen + numCustomFrontendScreens;
 	assert(id < MENUPAGES && "No room for new custom frontend screens! Increase MENUPAGES");
 	strncpy(aScreens[id].m_ScreenName, name, 8);
-	aScreens[id].m_PreviousPage = prevPage;
+	aScreens[id].m_PreviousPage[0] = aScreens[id].m_PreviousPage[1] = prevPage;
 	aScreens[id].returnPrevPageFunc = returnPrevPageFunc;
 	return id;
 }
@@ -86,7 +101,7 @@ void FrontendOptionSetCursor(int screen, int8 option, bool overwrite)
 	optionOverwrite = overwrite;
 }
 
-void FrontendOptionAddBuiltinAction(const char* gxtKey, uint16 x, uint16 y, uint8 align, int action, int targetMenu, int saveSlot) {
+void FrontendOptionAddBuiltinAction(const char* gxtKey, int action, int targetMenu, int saveSlot) {
 	int8 screenOptionOrder = RegisterNewOption();
 
 	CMenuScreenCustom::CMenuEntry &option = aScreens[currentMenu].m_aEntries[screenOptionOrder];
@@ -103,23 +118,17 @@ void FrontendOptionAddBuiltinAction(const char* gxtKey, uint16 x, uint16 y, uint
 			strncpy(option.m_EntryName, gxtKey, 8);
 			break;
 	}
-	option.m_X = x;
-	option.m_Y = y;
-	option.m_Align = align;
 	option.m_Action = action;
 	option.m_SaveSlot = saveSlot;
 	option.m_TargetMenu = targetMenu;
 }
 
-void FrontendOptionAddSelect(const char* gxtKey, uint16 x, uint16 y, uint8 align, const char** rightTexts, int8 numRightTexts, int8 *var, bool onlyApplyOnEnter, ChangeFunc changeFunc, const char* saveCat, const char* saveName, bool disableIfGameLoaded)
+void FrontendOptionAddSelect(const char* gxtKey, const char** rightTexts, int8 numRightTexts, int8 *var, bool onlyApplyOnEnter, ChangeFunc changeFunc, const char* saveName)
 {	
 	int8 screenOptionOrder = RegisterNewOption();
 
 	CMenuScreenCustom::CMenuEntry &option = aScreens[currentMenu].m_aEntries[screenOptionOrder];
 	option.m_Action = MENUACTION_CFO_SELECT;
-	option.m_X = x;
-	option.m_Y = y;
-	option.m_Align = align;
 	strncpy(option.m_EntryName, gxtKey, 8);
 	option.m_CFOSelect = new CCFOSelect();
 	option.m_CFOSelect->rightTexts = (char**)malloc(numRightTexts * sizeof(char*));
@@ -130,40 +139,40 @@ void FrontendOptionAddSelect(const char* gxtKey, uint16 x, uint16 y, uint8 align
 		option.m_CFOSelect->displayedValue = *var;
 		option.m_CFOSelect->lastSavedValue = *var;
 	}
-	option.m_CFOSelect->saveCat = saveCat;
 	option.m_CFOSelect->save = saveName;
 	option.m_CFOSelect->onlyApplyOnEnter = onlyApplyOnEnter;
 	option.m_CFOSelect->changeFunc = changeFunc;
-	option.m_CFOSelect->disableIfGameLoaded = disableIfGameLoaded;
 }
 
-void FrontendOptionAddDynamic(const char* gxtKey, uint16 x, uint16 y, uint8 align, DrawFunc drawFunc, int8 *var, ButtonPressFunc buttonPressFunc, const char* saveCat, const char* saveName)
+void FrontendOptionAddDynamic(const char* gxtKey, DrawFunc drawFunc, int8 *var, ButtonPressFunc buttonPressFunc, const char* saveName)
 {
 	int8 screenOptionOrder = RegisterNewOption();
 
 	CMenuScreenCustom::CMenuEntry &option = aScreens[currentMenu].m_aEntries[screenOptionOrder];
 	option.m_Action = MENUACTION_CFO_DYNAMIC;
-	option.m_X = x;
-	option.m_Y = y;
-	option.m_Align = align;
 	strncpy(option.m_EntryName, gxtKey, 8);
 	option.m_CFODynamic = new CCFODynamic();
 	option.m_CFODynamic->drawFunc = drawFunc;
 	option.m_CFODynamic->buttonPressFunc = buttonPressFunc;
 	option.m_CFODynamic->value = var;
-	option.m_CFODynamic->saveCat = saveCat;
 	option.m_CFODynamic->save = saveName;
 }
 
-// lineHeight = 0 means game will use MENU_DEFAULT_LINE_HEIGHT
-uint8 FrontendScreenAdd(const char* gxtKey, int prevPage, int lineHeight, bool showLeftRightHelper, ReturnPrevPageFunc returnPrevPageFunc) {
+uint8 FrontendScreenAdd(const char* gxtKey, eMenuSprites sprite, int prevPage, int columnWidth, int headerHeight, int lineHeight,
+	int8 font, float fontScaleX, float fontScaleY, int8 alignment, bool showLeftRightHelper, ReturnPrevPageFunc returnPrevPageFunc) {
 
 	uint8 screenOrder = RegisterNewScreen(gxtKey, prevPage, returnPrevPageFunc);
 
 	CCustomScreenLayout *screen = new CCustomScreenLayout();
 	aScreens[screenOrder].layout = screen;
+	screen->sprite = sprite;
+	screen->columnWidth = columnWidth;
+	screen->headerHeight = headerHeight;
 	screen->lineHeight = lineHeight;
-	screen->showLeftRightHelper = showLeftRightHelper;
+	screen->font = font;
+	screen->fontScaleX = fontScaleX;
+	screen->fontScaleY = fontScaleY;
+	screen->alignment = alignment;
 
 	return screenOrder;
 }

@@ -36,14 +36,14 @@ struct tParticleSystemData
 	uint16        m_nZRadiusChangeTime;
 	float         m_fInitialZRadius;
 	float         m_fZRadiusChangeAmount;
-	int16         m_nFadeToBlackTime;
-	uint8         m_nFadeToBlackInitialIntensity;
+	uint16        m_nFadeToBlackTime;
 	int16         m_nFadeToBlackAmount;
+	uint8         m_nFadeToBlackInitialIntensity;
 	uint8         m_nFadeAlphaInitialIntensity;
-	int16         m_nFadeAlphaTime;
+	uint16        m_nFadeAlphaTime;
 	int16         m_nFadeAlphaAmount;
-	uint8         m_nStartAnimationFrame;
-	uint8         m_nFinalAnimationFrame;
+	uint16        m_nStartAnimationFrame;
+	uint16        m_nFinalAnimationFrame;
 	uint16        m_nAnimationSpeed;
 	uint16        m_nRotationSpeed;
 	float         m_fGravitationalAcceleration;
@@ -56,19 +56,16 @@ struct tParticleSystemData
 	uint32        m_nLifeSpanErrorShape;
 	float         m_fTrailLengthMultiplier;
 	uint32        Flags;
-	CRGBA         m_RenderColouring;
+	RwRGBA        m_RenderColouring;
 	uint8         m_InitialColorVariation;
-	CRGBA         m_FadeDestinationColor;
+	RwRGBA        m_FadeDestinationColor;
 	uint32        m_ColorFadeTime;
-	
-	CVector2D     m_vecTextureStretch;
-	float         m_fWindFactor;
 
 	RwRaster      **m_ppRaster;
 	CParticle     *m_pParticles;
 };
 
-VALIDATE_SIZE(tParticleSystemData, 0x94);
+VALIDATE_SIZE(tParticleSystemData, 0x88);
 
 class cParticleSystemMgr
 {
@@ -110,11 +107,6 @@ class cParticleSystemMgr
 		CFG_PARAM_ROTATION_RATE_ERROR,
 		CFG_PARAM_LIFE_SPAN_ERROR_SHAPE,
 		CFG_PARAM_TRAIL_LENGTH_MULTIPLIER,
-		
-		CFG_PARAM_STRETCH_VALUE_X,
-		CFG_PARAM_STRETCH_VALUE_Y,
-		CFG_PARAM_WIND_FACTOR,
-		
 		CFG_PARAM_PARTICLE_CREATE_RANGE,
 		CFG_PARAM_FLAGS,
 
@@ -133,6 +125,6 @@ public:
 	void RangeCheck(tParticleSystemData *pData) { }
 };
 
-VALIDATE_SIZE(cParticleSystemMgr, 0x2FFC);
+VALIDATE_SIZE(cParticleSystemMgr, 0x2420);
 
 extern cParticleSystemMgr mod_ParticleSystemManager;

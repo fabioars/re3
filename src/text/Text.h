@@ -7,7 +7,7 @@ void TextCopy(wchar *dst, const wchar *src);
 
 struct CKeyEntry
 {
-#if defined(FIX_BUGS) || defined(FIX_BUGS_64)
+#ifdef FIX_BUGS
 	uint32 valueOffset;
 #else
 	wchar *value;
@@ -26,14 +26,14 @@ public:
 
 	CKeyArray(void) : entries(nil), numEntries(0) {}
 	~CKeyArray(void) { Unload(); }
-	void Load(size_t length, int file, size_t *offset);
+	void Load(size_t length, uint8 *data, intptr_t *offset);
 	void Unload(void);
 	void Update(wchar *chars);
 	CKeyEntry *BinarySearch(const char *key, CKeyEntry *entries, int16 low, int16 high);
-#if defined (FIX_BUGS) || defined(FIX_BUGS_64)
-	wchar *Search(const char *key, wchar *data, uint8 *result);
+#ifdef FIX_BUGS
+	wchar *Search(const char *key, wchar *data);
 #else
-	wchar *Search(const char *key, uint8* result);
+	wchar *Search(const char *key);
 #endif
 };
 
@@ -45,45 +45,15 @@ public:
 
 	CData(void) : chars(nil), numChars(0) {}
 	~CData(void) { Unload(); }
-	void Load(size_t length, int file, size_t* offset);
+	void Load(size_t length, uint8 *data, intptr_t *offset);
 	void Unload(void);
-};
-
-class CMissionTextOffsets
-{
-public:
-	struct Entry
-	{
-		char szMissionName[8];
-		uint32 offset;
-	};
-
-	enum {MAX_MISSION_TEXTS = 90}; // beware that LCS has more
-
-	Entry data[MAX_MISSION_TEXTS];
-	uint16 size; // You can make this size_t if you want to exceed 32-bit boundaries, everything else should be ready.
-
-	CMissionTextOffsets(void) : size(0) {}
-	void Load(size_t table_size, int file, size_t* bytes_read, int);
-};
-
-struct ChunkHeader
-{
-	char magic[4];
-	int size;
 };
 
 class CText
 {
 	CKeyArray keyArray;
 	CData data;
-	CKeyArray mission_keyArray;
-	CData mission_data;
 	char encoding;
-	bool bHasMissionTextOffsets;
-	bool bIsMissionTextLoaded;
-	char szMissionTableName[8];
-	CMissionTextOffsets MissionTextOffsets;
 public:
 	CText(void);
 	void Load(void);
@@ -91,9 +61,6 @@ public:
 	wchar *Get(const char *key);
 	wchar GetUpperCase(wchar c);
 	void UpperCase(wchar *s);
-	void GetNameOfLoadedMissionText(char *outName);
-	void ReadChunkHeader(ChunkHeader *buf, int32 file, size_t *bytes_read);
-	void LoadMissionText(char *MissionTableName);
 };
 
 extern CText TheText;

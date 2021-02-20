@@ -3,10 +3,11 @@
 #include "AnimBlendClumpData.h"
 #include "MemoryMgr.h"
 
+
 CAnimBlendClumpData::CAnimBlendClumpData(void)
 {
 	numFrames = 0;
-	velocity2d = nil;
+	velocity = nil;
 	frames = nil;
 	link.Init();
 }

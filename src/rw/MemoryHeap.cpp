@@ -7,8 +7,6 @@
 #include "FileLoader.h"
 #include "MemoryHeap.h"
 
-// TODO(MIAMI)
-
 #ifdef USE_CUSTOM_ALLOCATOR
 
 //#define MEMORYHEAP_ASSERT(cond) { if (!(cond)) { printf("ASSERT File:%s Line:%d\n", __FILE__, __LINE__); exit(1); } }
@@ -189,7 +187,7 @@ CMemoryHeap::Malloc(uint32 size)
 	void *mem = Malloc(size);
 	if (removeCollision) {
 		CTimer::Stop();
-		// TODO: different on PS2
+		// different on PS2
 		CFileLoader::LoadCollisionFromDatFile(CCollision::ms_collisionInMemory);
 		removeCollision = false;
 		CTimer::Update();
@@ -341,7 +339,7 @@ CMemoryHeap::TidyHeap(void)
 	}
 }
 
-// MIAMI: this is empty
+// 
 void
 CMemoryHeap::RegisterMemPointer(void *ptr)
 {

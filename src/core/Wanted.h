@@ -9,10 +9,8 @@ class CWanted
 {
 public:
 	int32 m_nChaos;
-	int32 m_nMinChaos;
 	int32 m_nLastUpdateTime;
 	uint32 m_nLastWantedLevelChange;
-	uint32 m_nLastTimeSuspended;
 	float m_fCrimeSensitivity;
 	uint8 m_CurrentCops;
 	uint8 m_MaxCops;
@@ -25,7 +23,6 @@ public:
 	uint8 m_bFbiRequired : 1;
 	uint8 m_bArmyRequired : 1;
 	int32 m_nWantedLevel;
-	int32 m_nMinWantedLevel;
 	CCrimeBeingQd m_aCrimes[16];
 	CCopPed *m_pCops[10];
 
@@ -34,15 +31,12 @@ public:
 
 public:
 	void Initialise();
-	bool AreMiamiViceRequired();
 	bool AreSwatRequired();
 	bool AreFbiRequired();
 	bool AreArmyRequired();
 	int32 NumOfHelisRequired();
 	void SetWantedLevel(int32);
 	void SetWantedLevelNoDrop(int32 level);
-	int32 GetWantedLevel() { return m_nWantedLevel; }
-	void CheatWantedLevel(int32 level);
 	void RegisterCrime(eCrimeType type, const CVector &coors, uint32 id, bool policeDoesntCare);
 	void RegisterCrime_Immediately(eCrimeType type, const CVector &coors, uint32 id, bool policeDoesntCare);
 	void ClearQdCrimes();
@@ -53,8 +47,6 @@ public:
 	void ResetPolicePursuit();
 	void UpdateCrimesQ();
 	void Update();
-
-	void Suspend();
 
 	bool IsIgnored(void) { return m_bIgnoredByCops || m_bIgnoredByEveryone; }
 

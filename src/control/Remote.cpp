@@ -35,24 +35,17 @@ CRemote::GivePlayerRemoteControlledCar(float x, float y, float z, float rot, uin
 
 	CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle = car;
 	CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->RegisterReference((CEntity**)&CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle);
-	if (car->GetVehicleAppearance() == VEHICLE_APPEARANCE_PLANE || car->GetVehicleAppearance() == VEHICLE_APPEARANCE_HELI) {
-		TheCamera.TakeControl(car, CCam::MODE_CAM_ON_A_STRING, INTERPOLATION, CAMCONTROL_SCRIPT);
-		TheCamera.SetZoomValueCamStringScript(0);
-	} else
-		TheCamera.TakeControl(car, CCam::MODE_BEHINDCAR, INTERPOLATION, CAMCONTROL_SCRIPT);
+	TheCamera.TakeControl(car, CCam::MODE_BEHINDCAR, INTERPOLATION, CAMCONTROL_SCRIPT);
 }
 
 void
-CRemote::TakeRemoteControlledCarFromPlayer(bool blowUp)
+CRemote::TakeRemoteControlledCarFromPlayer(void)
 {
-	if (CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->VehicleCreatedBy == MISSION_VEHICLE) {
-		CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->VehicleCreatedBy = RANDOM_VEHICLE;
-		CCarCtrl::NumMissionCars--;
-		CCarCtrl::NumRandomCars++;
-	}
+	CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->VehicleCreatedBy = RANDOM_VEHICLE;
+	CCarCtrl::NumMissionCars--;
+	CCarCtrl::NumRandomCars++;
 	CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->bIsLocked = false;
 	CWorld::Players[CWorld::PlayerInFocus].m_nTimeLostRemoteCar = CTimer::GetTimeInMilliseconds();
 	CWorld::Players[CWorld::PlayerInFocus].m_bInRemoteMode = true;
-	CWorld::Players[CWorld::PlayerInFocus].field_D5 = blowUp;
-	CWorld::Players[CWorld::PlayerInFocus].field_D6 = true;
+	CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle->bRemoveFromWorld = true;
 }

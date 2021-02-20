@@ -1,4 +1,11 @@
-#define WITHDINPUT
+#pragma warning( push )
+#pragma warning( disable : 4005)
+#if defined RW_D3D9 || defined RWLIBS
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
+#endif
+#pragma warning( pop )
+
 #include "common.h"
 #include "crossplatform.h"
 #include "platform.h"
@@ -33,14 +40,7 @@
 #include "Streaming.h"
 #include "PathFind.h"
 #include "Wanted.h"
-#include "WaterLevel.h"
 #include "General.h"
-#include "Fluff.h"
-#include "Gangs.h"
-#include "platform.h"
-#include "Stats.h"
-#include "CarCtrl.h"
-#include "TrafficLights.h"
 
 #ifdef GTA_PS2
 #include "eetypes.h"
@@ -59,9 +59,9 @@ bool CPad::bDisplayNoControllerMessage;
 bool CPad::bObsoleteControllerMessage;
 bool CPad::bOldDisplayNoControllerMessage;
 bool CPad::m_bMapPadOneToPadTwo;
-bool CPad::m_bDebugCamPCOn;
-bool CPad::bHasPlayerCheated;
+#ifdef INVERT_LOOK_FOR_PAD
 bool CPad::bInvertLook4Pad;
+#endif
 #ifdef GTA_PS2
 unsigned char act_direct[6];
 unsigned char act_align[6];
@@ -71,7 +71,7 @@ CKeyboardState CPad::OldKeyState;
 CKeyboardState CPad::NewKeyState;
 CKeyboardState CPad::TempKeyState;
 
-char CPad::KeyBoardCheatString[30];
+char CPad::KeyBoardCheatString[20];
 
 CMouseControllerState CPad::OldMouseControllerState;
 CMouseControllerState CPad::NewMouseControllerState;
@@ -84,259 +84,61 @@ bool CPad::IsAffectedByController = false;
 _TODO("gbFastTime");
 extern bool gbFastTime;
 
-#ifdef WALLCLIMB_CHEAT
-extern bool gGravityCheat;
-#endif
-
-void SpecialCarCheats()
-{
-	if ( !CVehicle::bCheat9 )
-	{
-		((CVehicleModelInfo*)CModelInfo::GetModelInfo(MI_INFERNUS))->m_wheelScale *= 1.3f;
-		((CVehicleModelInfo*)CModelInfo::GetModelInfo(MI_CHEETAH))->m_wheelScale *= 1.3f;
-		((CVehicleModelInfo*)CModelInfo::GetModelInfo(MI_PHEONIX))->m_wheelScale *= 1.3f;
-		((CVehicleModelInfo*)CModelInfo::GetModelInfo(MI_DELUXO))->m_wheelScale *= 1.3f;
-		mod_HandlingManager.GetHandlingData(HANDLING_LANDSTAL)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_PATRIOT)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BOBCAT)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BFINJECT)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_RANCHER)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_DESPERAD)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_DELUXO)->Transmission.fEngineAcceleration *= 2.0f;
-
-		mod_HandlingManager.GetHandlingData(HANDLING_BAGGAGE)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BAGGAGE)->Transmission.fMaxVelocity *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BAGGAGE)->Transmission.InitGearRatios();
-
-		mod_HandlingManager.GetHandlingData(HANDLING_GOLFCART)->Transmission.fEngineAcceleration *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_GOLFCART)->Transmission.fMaxVelocity *= 2.0f;
-		mod_HandlingManager.GetHandlingData(HANDLING_GOLFCART)->Transmission.InitGearRatios();
-
-		mod_HandlingManager.GetHandlingData(HANDLING_STINGER)->fCollisionDamageMultiplier *= 0.25f;
-		mod_HandlingManager.GetHandlingData(HANDLING_STINGER)->fMass *= 2.5f;
-		mod_HandlingManager.GetHandlingData(HANDLING_STINGER)->fTurnMass *= 4.0f;
-
-		mod_HandlingManager.GetHandlingData(HANDLING_BANSHEE)->fCollisionDamageMultiplier *= 0.25f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BANSHEE)->fMass *= 2.5f;
-		mod_HandlingManager.GetHandlingData(HANDLING_BANSHEE)->fTurnMass *= 4.0f;
-
-		mod_HandlingManager.GetHandlingData(HANDLING_SABRETUR)->fCollisionDamageMultiplier *= 0.25f;
-		mod_HandlingManager.GetHandlingData(HANDLING_SABRETUR)->fMass *= 2.5f;
-		mod_HandlingManager.GetHandlingData(HANDLING_SABRETUR)->fTurnMass *= 4.0f;
-
-		mod_HandlingManager.GetHandlingData(HANDLING_COMET)->fCollisionDamageMultiplier *= 0.25f;
-		mod_HandlingManager.GetHandlingData(HANDLING_COMET)->fMass *= 2.5f;
-		mod_HandlingManager.GetHandlingData(HANDLING_COMET)->fTurnMass *= 4.0f;
-
-		mod_HandlingManager.GetHandlingData(HANDLING_DELUXO)->fCollisionDamageMultiplier *= 0.25f;
-		mod_HandlingManager.GetHandlingData(HANDLING_DELUXO)->fMass *= 2.5f;
-		mod_HandlingManager.GetHandlingData(HANDLING_DELUXO)->fTurnMass *= 4.0f;
-		CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-		CVehicle::bCheat9 = true;
-		CPad::bHasPlayerCheated = true;
-	}
-}
-
-void PickUpChicksCheat()
-{
-	if ( FindPlayerVehicle() && (FindPlayerVehicle()->IsCar() || FindPlayerVehicle()->IsBike()) )
-	{
-		CVehicle *vehicle = FindPlayerVehicle();
-		if ( FindPlayerVehicle()->IsBike() )
-		{
-			if ( vehicle->pPassengers[0] )
-				vehicle->pPassengers[0]->SetObjective(OBJECTIVE_LEAVE_CAR, vehicle);
-		}
-		CPed* someoneElse = (CPed*)CWorld::TestSphereAgainstWorld(vehicle->GetPosition(), 6.0f, FindPlayerPed(), false, false, true, false, false, false);
-		if ( someoneElse && someoneElse->m_nPedState != PED_DRIVING )
-		{
-			CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-			someoneElse->SetObjective(OBJECTIVE_ENTER_CAR_AS_PASSENGER, vehicle);
-		}
-	}
-}
-
-void WeaponCheat1()
+void WeaponCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT2"), true);
-
-	CStreaming::RequestModel(MI_BRASS_KNUCKLES, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_BASEBALL_BAT, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_MOLOTOV, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_COLT45, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_SHOTGUN, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_TEC9, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_RUGER, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_SNIPERRIFLE, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_FLAMETHROWER, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::LoadAllRequestedModels(false);
-
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_BRASSKNUCKLE, 1);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_BASEBALLBAT, 1);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_MOLOTOV, 10);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_BASEBALLBAT, 0);
 	FindPlayerPed()->GiveWeapon(WEAPONTYPE_COLT45, 100);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SHOTGUN, 50);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_TEC9, 150);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_RUGER, 120);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SNIPERRIFLE, 25);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_FLAMETHROWER, 200);
-
-	CStreaming::SetModelIsDeletable(MI_BRASS_KNUCKLES);
-	CStreaming::SetModelIsDeletable(MI_BASEBALL_BAT);
-	CStreaming::SetModelIsDeletable(MI_MOLOTOV);
-	CStreaming::SetModelIsDeletable(MI_COLT45);
-	CStreaming::SetModelIsDeletable(MI_SHOTGUN);
-	CStreaming::SetModelIsDeletable(MI_TEC9);
-	CStreaming::SetModelIsDeletable(MI_RUGER);
-	CStreaming::SetModelIsDeletable(MI_SNIPERRIFLE);
-	CStreaming::SetModelIsDeletable(MI_FLAMETHROWER);
-#ifdef MOBILE_IMPROVEMENTS
-	if (FindPlayerVehicle()) {
-		FindPlayerPed()->RemoveWeaponWhenEnteringVehicle();
-	}
-#endif
-}
-
-void WeaponCheat2()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT2"), true);
-
-	CStreaming::RequestModel(MI_KATANA, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_GRENADE, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_BOMB, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_PYTHON, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_STUBBY_SHOTGUN, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_SILENCEDINGRAM, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_M4, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_LASERSCOPE, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_ROCKETLAUNCHER, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::LoadAllRequestedModels(false);
-
-#ifdef FIX_BUGS
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_KATANA, 1);
-#else
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_KATANA, 0);
-#endif
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_DETONATOR_GRENADE, 10);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_PYTHON, 40);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_STUBBY_SHOTGUN, 25);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SILENCED_INGRAM, 100);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_M4, 150);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_LASERSCOPE, 21);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_UZI, 100);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SHOTGUN, 20);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_AK47, 200);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_M16, 200);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SNIPERRIFLE, 5);
 	FindPlayerPed()->GiveWeapon(WEAPONTYPE_ROCKETLAUNCHER, 5);
-
-	CStreaming::SetModelIsDeletable(MI_KATANA);
-	CStreaming::SetModelIsDeletable(MI_GRENADE);
-	CStreaming::SetModelIsDeletable(MI_BOMB);
-	CStreaming::SetModelIsDeletable(MI_PYTHON);
-	CStreaming::SetModelIsDeletable(MI_STUBBY_SHOTGUN);
-	CStreaming::SetModelIsDeletable(MI_SILENCEDINGRAM);
-	CStreaming::SetModelIsDeletable(MI_M4);
-	CStreaming::SetModelIsDeletable(MI_LASERSCOPE);
-	CStreaming::SetModelIsDeletable(MI_ROCKETLAUNCHER);
-#ifdef MOBILE_IMPROVEMENTS
-	if (FindPlayerVehicle()) {
-		FindPlayerPed()->RemoveWeaponWhenEnteringVehicle();
-	}
-#endif
-}
-
-void WeaponCheat3()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT2"), true);
-
-	CStreaming::RequestModel(MI_CHAINSAW, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_GRENADE, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_PYTHON, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_SPAS12_SHOTGUN, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_MP5, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_M4, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_LASERSCOPE, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_MINIGUN, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::RequestModel(MI_MINIGUN2, STREAMFLAGS_DONT_REMOVE);
-	CStreaming::LoadAllRequestedModels(false);
-
-#ifdef FIX_BUGS
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_CHAINSAW, 1);
-#else
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_CHAINSAW, 0);
-#endif
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_GRENADE, 10);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_PYTHON, 40);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_SPAS12_SHOTGUN, 30);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_MP5, 100);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_M4, 150);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_LASERSCOPE, 21);
-	FindPlayerPed()->GiveWeapon(WEAPONTYPE_MINIGUN, 500);
-
-	CStreaming::SetModelIsDeletable(MI_CHAINSAW);
-	CStreaming::SetModelIsDeletable(MI_GRENADE);
-	CStreaming::SetModelIsDeletable(MI_PYTHON);
-	CStreaming::SetModelIsDeletable(MI_SPAS12_SHOTGUN);
-	CStreaming::SetModelIsDeletable(MI_MP5);
-	CStreaming::SetModelIsDeletable(MI_M4);
-	CStreaming::SetModelIsDeletable(MI_LASERSCOPE);
-	CStreaming::SetModelIsDeletable(MI_MINIGUN);
-	CStreaming::SetModelIsDeletable(MI_MINIGUN2);
-
-#ifdef MOBILE_IMPROVEMENTS
-	if (FindPlayerVehicle()) {
-		FindPlayerPed()->RemoveWeaponWhenEnteringVehicle();
-	}
-#endif
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_MOLOTOV, 5);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_GRENADE, 5);
+	FindPlayerPed()->GiveWeapon(WEAPONTYPE_FLAMETHROWER, 200);
 }
 
 void HealthCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT3"), true);
-	FindPlayerPed()->m_fHealth = CWorld::Players[0].m_nMaxHealth;
+	FindPlayerPed()->m_fHealth = 100.0f;
 	if (FindPlayerVehicle()) {
 		FindPlayerVehicle()->m_fHealth = 1000.0f;
-		if (FindPlayerVehicle()->m_vehType == VEHICLE_TYPE_CAR) {
+		if (FindPlayerVehicle()->m_vehType == VEHICLE_TYPE_CAR)
 			((CAutomobile*)FindPlayerVehicle())->Damage.SetEngineStatus(0);
-			for (int32 i = 0; i < 4; i++)
-				((CAutomobile*)FindPlayerVehicle())->Damage.SetWheelStatus(i, WHEEL_STATUS_OK);
-		}
 	}
 }
 
-// TODO(Miami): this is HELLA different on mobile, although it mostly has debug oriented things like player exiting it's current car and enters spawned one etc.
-void VehicleCheat(int model)
+void TankCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CStreaming::RequestModel(model, STREAMFLAGS_DONT_REMOVE);
+	CStreaming::RequestModel(MI_RHINO, 0);
 	CStreaming::LoadAllRequestedModels(false);
-	if (CStreaming::ms_aInfoForModel[model].m_loadState == STREAMSTATE_LOADED) {
+	if (CStreaming::ms_aInfoForModel[MI_RHINO].m_loadState == STREAMSTATE_LOADED) {
 		CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-
-		if (!(CStreaming::ms_aInfoForModel[model].m_loadState & STREAMFLAGS_DONT_REMOVE)) {
-			CStreaming::SetModelIsDeletable(model);
-			CStreaming::SetModelTxdIsDeletable(model);
-		}
-
 		int32 node = ThePaths.FindNodeClosestToCoors(FindPlayerCoors(), PATH_CAR, 100.0f);
+
 		if (node < 0) return;
 
 #ifdef FIX_BUGS
-		CAutomobile* vehicle = new CAutomobile(model, RANDOM_VEHICLE);
+		CAutomobile* tank = new CAutomobile(MI_RHINO, RANDOM_VEHICLE);
 #else
-		CAutomobile* vehicle = new CAutomobile(model, MISSION_VEHICLE);
+		CAutomobile *tank = new CAutomobile(MI_RHINO, MISSION_VEHICLE);
 #endif
-		if (vehicle != nil) {
+		if (tank != nil) {
 			CVector pos = ThePaths.m_pathNodes[node].GetPosition();
 			pos.z += 4.0f;
-			vehicle->SetPosition(pos);
-			vehicle->SetOrientation(0.0f, 0.0f, DEGTORAD(200.0f));
+			tank->SetPosition(pos);
+			tank->SetOrientation(0.0f, 0.0f, DEGTORAD(200.0f));
 
-			vehicle->SetStatus(STATUS_ABANDONED);
-			vehicle->m_nDoorLock = CARLOCK_UNLOCKED;
-			CWorld::Add(vehicle);
+			tank->SetStatus(STATUS_ABANDONED);
+			tank->m_nDoorLock = CARLOCK_UNLOCKED;
+			CWorld::Add(tank);
 		}
 	}
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
-
 
 void BlowUpCarsCheat()
 {
@@ -351,8 +153,7 @@ void BlowUpCarsCheat()
 
 void ChangePlayerCheat()
 {
-	// I don't know wtf is going on in here...
-	int modelId, anotherModelId;
+	int modelId;
 
 	if (FindPlayerPed()->IsPedInControl() && CModelInfo::GetModelInfo("player", nil)) {
 		CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
@@ -360,31 +161,22 @@ void ChangePlayerCheat()
 		AssocGroupId AnimGrp = ped->m_animGroup;
 		do
 		{
-			do {
-				modelId = CGeneral::GetRandomNumberInRange(0, MI_PGA);
-				anotherModelId = modelId+1;
-			} while (!CModelInfo::GetModelInfo(anotherModelId));
-		} while (anotherModelId >= MI_SPECIAL01 && anotherModelId <= MI_SPECIAL04 || modelId == MI_TAXI_D);
+			do
+				modelId = CGeneral::GetRandomNumberInRange(0, MI_CAS_WOM+1);
+			while (!CModelInfo::GetModelInfo(modelId));
+		} while (modelId >= MI_SPECIAL01 && modelId <= MI_SPECIAL04 || modelId == MI_TAXI_D);
 
-		uint8 flags = CStreaming::ms_aInfoForModel[anotherModelId].m_flags;
+		uint8 flags = CStreaming::ms_aInfoForModel[modelId].m_flags;
 		ped->DeleteRwObject();
-		CStreaming::RequestModel(anotherModelId, STREAMFLAGS_DEPENDENCY| STREAMFLAGS_DONT_REMOVE);
+		CStreaming::RequestModel(modelId, STREAMFLAGS_DEPENDENCY| STREAMFLAGS_DONT_REMOVE);
 		CStreaming::LoadAllRequestedModels(false);
 		ped->m_modelIndex = -1;
-		ped->SetModelIndex(anotherModelId);
+		ped->SetModelIndex(modelId);
 		ped->m_animGroup = AnimGrp;
-		if (modelId != -1) {
+		if (modelId != MI_PLAYER) {
 			if (!(flags & STREAMFLAGS_DONT_REMOVE))
-				CStreaming::SetModelIsDeletable(anotherModelId);
+				CStreaming::SetModelIsDeletable(modelId);
 		}
-	}
-}
-
-void ChangePlayerModel(const char* name) {
-	if (!FindPlayerVehicle()) {
-		FindPlayerPed()->Undress(name);
-		CStreaming::LoadAllRequestedModels(0);
-		FindPlayerPed()->Dress();
 	}
 }
 
@@ -397,8 +189,6 @@ void MayhemCheat()
 			PED_FLAG_GANG2 | PED_FLAG_GANG3 | PED_FLAG_GANG4 | PED_FLAG_GANG5 |
 			PED_FLAG_GANG6 | PED_FLAG_GANG7 | PED_FLAG_GANG8 | PED_FLAG_GANG9 |
 			PED_FLAG_EMERGENCY | PED_FLAG_PROSTITUTE | PED_FLAG_CRIMINAL | PED_FLAG_SPECIAL );
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
 
 void EverybodyAttacksPlayerCheat()
@@ -406,17 +196,12 @@ void EverybodyAttacksPlayerCheat()
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
 	for (int i = PEDTYPE_CIVMALE; i < PEDTYPE_SPECIAL; i++)
 		CPedType::AddThreat(i, PED_FLAG_PLAYER1);
-
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
 
 void WeaponsForAllCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
 	CPopulation::ms_bGivePedsWeapons = !CPopulation::ms_bGivePedsWeapons;
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
 
 void FastTimeCheat()
@@ -442,31 +227,25 @@ void MoneyCheat()
 void ArmourCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT4"), true);
-	FindPlayerPed()->m_fArmour = CWorld::Players[0].m_nMaxArmour;
+	FindPlayerPed()->m_fArmour = 100.0f;
 }
 
 void WantedLevelUpCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT5"), true);
-	FindPlayerPed()->m_pWanted->CheatWantedLevel(Min(FindPlayerPed()->m_pWanted->GetWantedLevel() + 2, 6));
+	FindPlayerPed()->SetWantedLevel(Min(FindPlayerPed()->m_pWanted->m_nWantedLevel + 2, 6));
 }
 
 void WantedLevelDownCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT5"), true);
-	FindPlayerPed()->m_pWanted->CheatWantedLevel(0);
+	FindPlayerPed()->SetWantedLevel(0);
 }
 
 void SunnyWeatherCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT7"), true);
 	CWeather::ForceWeatherNow(WEATHER_SUNNY);
-}
-
-void ExtraSunnyWeatherCheat()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT7"), true);
-	CWeather::ForceWeatherNow(WEATHER_EXTRA_SUNNY);
 }
 
 void CloudyWeatherCheat()
@@ -497,101 +276,25 @@ void OnlyRenderWheelsCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
 	CVehicle::bWheelsOnlyCheat = !CVehicle::bWheelsOnlyCheat;
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
+
 
 void ChittyChittyBangBangCheat()
 {
-#ifdef BETTER_ALLCARSAREDODO_CHEAT
-	CHud::SetHelpMessage(TheText.Get(!CVehicle::bAllDodosCheat ? "CHEAT1" : "CHEATOF"), true);
-#else
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-#endif
 	CVehicle::bAllDodosCheat = !CVehicle::bAllDodosCheat;
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
 
 void StrongGripCheat()
 {
 	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
 	CVehicle::bCheat3 = !CVehicle::bCheat3;
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
 }
 
-void FannyMagnetCheat()
+void NastyLimbsCheat()
 {
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CPed::bFannyMagnetCheat = !CPed::bFannyMagnetCheat;
-	CPad::bHasPlayerCheated = true;
+	CPed::bNastyLimbsCheat = !CPed::bNastyLimbsCheat;
 }
-
-void BlackCarsCheat()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	gbBlackCars = true;
-	gbPinkCars = false;
-}
-
-void PinkCarsCheat()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	gbBlackCars = false;
-	gbPinkCars = true;
-}
-
-void TrafficLightsCheat()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CTrafficLights::bGreenLightsCheat = true;
-}
-
-void MadCarsCheat()
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CCarCtrl::bMadDriversCheat = true;
-}
-
-void NoSeaBedCheat(void)
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CWaterLevel::m_bRenderSeaBed = !CWaterLevel::m_bRenderSeaBed;
-}
-
-void RenderWaterLayersCheat(void)
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	if ( ++CWaterLevel::m_nRenderWaterLayers > 5 )
-			CWaterLevel::m_nRenderWaterLayers = 0;
-}
-
-void BackToTheFuture(void)
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CVehicle::bHoverCheat = !CVehicle::bHoverCheat;
-	CPad::bHasPlayerCheated = true;
-}
-
-void SuicideCheat(void) {
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	FindPlayerPed()->InflictDamage(nil, WEAPONTYPE_UNARMED, 1000.0f, PEDPIECE_TORSO, 0);
-}
-
-void DoChicksWithGunsCheat(void) {
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CStreaming::SetModelIsDeletable(CGangs::GetGangPedModel1(GANG_PLAYER));
-	CStreaming::SetModelIsDeletable(CGangs::GetGangPedModel2(GANG_PLAYER));
-	CStreaming::SetModelTxdIsDeletable(CGangs::GetGangPedModel1(GANG_PLAYER));
-	CStreaming::SetModelTxdIsDeletable(CGangs::GetGangPedModel2(GANG_PLAYER));
-	CStreaming::RemoveCurrentZonesModels();
-	CGangs::SetGangPedModels(GANG_PLAYER, MI_HFYBE, MI_WFYBE);
-	CGangs::SetGangWeapons(GANG_PLAYER, WEAPONTYPE_M4, WEAPONTYPE_M4);
-	CStats::CheatedCount += 1000;
-	CPad::bHasPlayerCheated = true;
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 #ifdef KANGAROO_CHEAT
@@ -616,7 +319,7 @@ void KangarooCheat()
 }
 #endif
 
-#ifdef RESTORE_ALLCARSHELI_CHEAT
+#ifdef ALLCARSHELI_CHEAT
 void AllCarsHeliCheat(void)
 {
 	wchar* string;
@@ -632,33 +335,21 @@ void AllCarsHeliCheat(void)
 }
 #endif
 
-#ifdef WALLCLIMB_CHEAT
-void WallClimbingCheat(void)
+#ifdef ALT_DODO_CHEAT
+void AltDodoCheat(void)
 {
 	wchar* string;
-	if (gGravityCheat) {
+	if (CVehicle::bAltDodoCheat) {
 		string = TheText.Get("CHEATOF");
-		gGravityCheat = false;
+		CVehicle::bAltDodoCheat = false;
 	}
 	else {
 		string = TheText.Get("CHEAT1");
-		gGravityCheat = true;
+		CVehicle::bAltDodoCheat = true;
 	}
 	CHud::SetHelpMessage(string, true);
 }
 #endif
-
-void FlyingFishCheat(void)
-{
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CVehicle::bCheat8 = !CVehicle::bCheat8;
-	CPad::bHasPlayerCheated = true;
-}
-
-void DoShowChaseStatCheat(void) {
-	CHud::SetHelpMessage(TheText.Get("CHEAT1"), true);
-	CStats::ShowChaseStatOnScreen = 1;
-}
 
 bool
 CControllerState::CheckForInput(void)
@@ -730,8 +421,6 @@ void CPad::Initialise(void)
 	bObsoleteControllerMessage	   = false;
 	bOldDisplayNoControllerMessage = false;
 	bDisplayNoControllerMessage	   = false;
-	m_bMapPadOneToPadTwo = false;
-	m_bDebugCamPCOn = false;
 }
 #endif
 
@@ -756,16 +445,11 @@ void CPad::Clear(bool bResetPlayerControls)
 	ShakeFreq = 0;
 	ShakeDur = 0;
 
-	for (int32 i = 0; i < DRUNK_STEERING_BUFFER_SIZE; i++)
-		SteeringLeftRightBuffer[i] = 0;
-
-	DrunkDrivingBufferUsed = 0;
-
 	if ( bResetPlayerControls )
 		DisablePlayerControls = PLAYERCONTROL_ENABLED;
 
-	JustOutOfFrontend = 0;
 	bApplyBrakes = false;
+
 
 	for ( int32 i = 0; i < HORNHISTORY_SIZE; i++ )
 		bHornHistory[i] = false;
@@ -780,24 +464,11 @@ void CPad::Clear(bool bResetPlayerControls)
 	AverageEntries = 0;
 }
 
-uint32 CPad::InputHowLongAgo()
-{
-	return CTimer::GetTimeInMilliseconds() - LastTimeTouched;
-}
-
 void CPad::ClearMouseHistory()
 {
 	PCTempMouseControllerState.Clear();
 	NewMouseControllerState.Clear();
 	OldMouseControllerState.Clear();
-}
-
-// unused
-void CPad::ClearKeyBoardHistory()
-{
-	NewKeyState.Clear();
-	OldKeyState.Clear();
-	TempKeyState.Clear();
 }
 
 CMouseControllerState::CMouseControllerState()
@@ -831,7 +502,7 @@ CMouseControllerState CMousePointerStateHelper::GetMouseSetUp()
 
 #if defined RW_D3D9 || defined RWLIBS
 	if ( PSGLOBAL(mouse) == nil )
-		_InputInitialiseMouse(!FrontEndMenuManager.m_bMenuActive && _InputMouseNeedsExclusive());
+		_InputInitialiseMouse();
 
 	if ( PSGLOBAL(mouse) != nil )
 	{
@@ -885,7 +556,7 @@ void CPad::UpdateMouse()
 	if ( IsForegroundApp() )
 	{
 		if ( PSGLOBAL(mouse) == nil )
-			_InputInitialiseMouse(!FrontEndMenuManager.m_bMenuActive && _InputMouseNeedsExclusive());
+			_InputInitialiseMouse();
 
 		DIMOUSESTATE2 state;
 
@@ -1029,7 +700,7 @@ CControllerState CPad::ReconcileTwoControllersInput(CControllerState const &Stat
 
 void CPad::StartShake(int16 nDur, uint8 nFreq)
 {
-	if ( !FrontEndMenuManager.m_PrefsUseVibration )
+	if ( !CMenuManager::m_PrefsUseVibration )
 		return;
 
 	if ( CCutsceneMgr::IsRunning() || CGame::playingIntro )
@@ -1051,7 +722,7 @@ void CPad::StartShake(int16 nDur, uint8 nFreq)
 
 void CPad::StartShake_Distance(int16 nDur, uint8 nFreq, float fX, float fY, float fZ)
 {
-	if ( !FrontEndMenuManager.m_PrefsUseVibration )
+	if ( !CMenuManager::m_PrefsUseVibration )
 		return;
 
 	if ( CCutsceneMgr::IsRunning() || CGame::playingIntro )
@@ -1078,7 +749,7 @@ void CPad::StartShake_Distance(int16 nDur, uint8 nFreq, float fX, float fY, floa
 
 void CPad::StartShake_Train(float fX, float fY)
 {
-	if ( !FrontEndMenuManager.m_PrefsUseVibration )
+	if ( !CMenuManager::m_PrefsUseVibration )
 		return;
 
 	if ( CCutsceneMgr::IsRunning() || CGame::playingIntro )
@@ -1112,7 +783,7 @@ void CPad::AddToCheatString(char c)
 #define _CHEATCMP(str)	strncmp(str, CheatString, sizeof(str)-1)
 	// "4414LDRULDRU"	-	R2 R2 L1 R2 LEFT DOWN RIGHT UP LEFT DOWN RIGHT UP
 	if ( !_CHEATCMP("URDLURDL4144") )
-		WeaponCheat1();
+		WeaponCheat();
 
 	// "4411LDRULDRU"	-	R2 R2 L1 L1 LEFT DOWN RIGHT UP LEFT DOWN RIGHT UP
 	else if ( !_CHEATCMP("URDLURDL1144") )
@@ -1152,7 +823,7 @@ void CPad::AddToCheatString(char c)
 
 	// "CCCCCC321TCT"	-	CIRCLE CIRCLE CIRCLE CIRCLE CIRCLE CIRCLE R1 L2 L1 TRIANGLE CIRCLE TRIANGLE
 	else if ( !_CHEATCMP("TCT123CCCCCC") )
-		VehicleCheat(MI_RHINO);
+		TankCheat();
 
 	// "CCCSSSSS1TCT"	-	CIRCLE CIRCLE CIRCLE SQUARE SQUARE SQUARE SQUARE SQUARE L1 TRIANGLE CIRCLE TRIANGLE
 	else if ( !_CHEATCMP("TCT1SSSSSCCC") )
@@ -1198,354 +869,119 @@ void CPad::AddToCheatString(char c)
 	else if ( !_CHEATCMP("T33L1413") )
 		StrongGripCheat();
 
+	// "S1CD13TR1X"		-	SQUARE L1 CIRCLE DOWN L1 R1 TRIANGLE RIGHT L1 CROSS
+	else if ( !_CHEATCMP("X1RT31DC1S") )
+		NastyLimbsCheat();
 #undef _CHEATCMP
 }
 #endif
 
-int Cheat_strncmp(char* sourceStr, char* origCheatStr)
-{
-#define ccmp(n) if((uint8)sourceStr[i] != (uint8)origCheatStr[i] - n) return 1;
-	int i = 0;
-	while(origCheatStr[i])
-	{
-		switch(i)
-		{
-		case 0: ccmp(3); break;
-		case 1: ccmp(5); break;
-		case 2: ccmp(7); break;
-		case 3: ccmp(1); break;
-		case 4: ccmp(13); break;
-		case 5: ccmp(27); break;
-		case 6: ccmp(3); break;
-		case 7: ccmp(7); break;
-		case 8: ccmp(1); break;
-		case 9: ccmp(11); break;
-		case 10: ccmp(13); break;
-		case 11: ccmp(8); break;
-		case 12: ccmp(7); break;
-		case 13: ccmp(32); break;
-		case 14: ccmp(13); break;
-		case 15: ccmp(6); break;
-		case 16: ccmp(28); break;
-		case 17: ccmp(19); break;
-		case 18: ccmp(10); break;
-		case 19: ccmp(3); break;
-		case 20: ccmp(3); break;
-		case 21: ccmp(5); break;
-		case 22: ccmp(7); break;
-		case 23: ccmp(1); break;
-		case 24: ccmp(13); break;
-		case 25: ccmp(27); break;
-		case 26: ccmp(3); break;
-		case 27: ccmp(7); break;
-		default: return 1;
-		}
-		i++;
-	}
-	return 0;
-#undef ccmp
-}
-
-// TODO(Miami): Mobile has changed some of the cheats to include debugging things
 void CPad::AddToPCCheatString(char c)
 {
-	for (int32 i = ARRAY_SIZE(KeyBoardCheatString) - 2; i >= 0; i--)
+	for ( int32 i = ARRAY_SIZE(KeyBoardCheatString) - 2; i >= 0; i-- )
 		KeyBoardCheatString[i + 1] = KeyBoardCheatString[i];
 
 	KeyBoardCheatString[0] = c;
 
-#define _CHEATCMP(str) strncmp(str, KeyBoardCheatString, sizeof(str)-1)
+	#define _CHEATCMP(str) strncmp(str, KeyBoardCheatString, sizeof(str)-1)
 
-	// "THUGSTOOLS"
-	if (!Cheat_strncmp(KeyBoardCheatString, "VQVPanJ\\I_")) {
-		KeyBoardCheatString[0] = ' ';
-		WeaponCheat1();
-	}
-	// "PROFESSIONALTOOLS"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VQVPagDUPT`[Lf\\Xl")) {
-		KeyBoardCheatString[0] = ' ';
-		WeaponCheat2();
-	}
-	// "NUTTERTOOLS"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VQVPamH[U`[")) {
-		KeyBoardCheatString[0] = ' ';
-		WeaponCheat3();
-	}
-	// "PRECIOUSPROTECTION"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "QTPUP`WVS[`]ViPKnc")) {
-		KeyBoardCheatString[0] = ' ';
-		ArmourCheat();
-	}
-	// "ASPIRINE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HSPSVkVH")) {
-		KeyBoardCheatString[0] = ' ';
+	// "GUNSGUNSGUNS"
+	if ( !_CHEATCMP("SNUGSNUGSNUG") )
+		WeaponCheat();
+
+	// "IFIWEREARICHMAN"
+	if ( !_CHEATCMP("NAMHCIRAEREWIFI") )
+		MoneyCheat();
+
+	// "GESUNDHEIT"
+	if ( !_CHEATCMP("TIEHDNUSEG") )
 		HealthCheat();
-	}
-	// "YOUWONTTAKEMEALIVE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "H[PMN`PLLLa\\Uod[kl")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "MOREPOLICEPLEASE"
+	if ( !_CHEATCMP("ESAELPECILOPEROM") )
 		WantedLevelUpCheat();
-	}
-	// "LEAVEMEALONE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HSVMN`PLWLRT")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "NOPOLICEPLEASE"
+	if ( !_CHEATCMP("ESAELPECILOPON") )
 		WantedLevelDownCheat();
-	}
-	// "APLEASANTDAY"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\FKU[\\VHFW]I")) {
-		KeyBoardCheatString[0] = ' ';
-		SunnyWeatherCheat();
-	}
-	// "ALOVELYDAY"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\FKZY`YVML")) {
-		KeyBoardCheatString[0] = ' ';
-		ExtraSunnyWeatherCheat();
-	}
-	// "ABITDRIEG"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JJPSQoLIB")) {
-		KeyBoardCheatString[0] = ' ';
-		CloudyWeatherCheat();
-	}
-	// "CATSANDDOGS"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VLVEQiDZULP")) {
-		KeyBoardCheatString[0] = ' ';
-		RainyWeatherCheat();
-	}
-	// "CANTSEEATHING"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSPIa\\HLT_[IJ")) {
-		KeyBoardCheatString[0] = ' ';
-		FoggyWeatherCheat();
-	}
-	// "PANZER"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UJaONk")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_RHINO);
-	}
-	// "LIFEISPASSINGMEBY"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\GLNTiLZTL][PeSOh")) {
-		KeyBoardCheatString[0] = ' ';
-		FastWeatherCheat();
-	}
-	// "BIGBANG"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSHCTdE")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "GIVEUSATANK"
+	if ( !_CHEATCMP("KNATASUEVIG") )
+		TankCheat();
+
+	// "BANGBANGBANG"
+	if ( !_CHEATCMP("GNABGNABGNAB") )
 		BlowUpCarsCheat();
-	}
-	// "STILLLIKEDRESSINGUP"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "SZNOVnVLSORSPlYReg]")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "ILIKEDRESSINGUP"
+	if ( !_CHEATCMP("PUGNISSERDEKILI") )
 		ChangePlayerCheat();
-	}
-	// "FIGHTFIGHTFIGHT"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WMNJSoKNJQaPNiS")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "ITSALLGOINGMAAAD"
+	if ( !_CHEATCMP("DAAAMGNIOGLLASTI") )
 		MayhemCheat();
-	}
+
 	// "NOBODYLIKESME"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HRZFXdO`EZOWU")) {
-		KeyBoardCheatString[0] = ' ';
+	if ( !_CHEATCMP("EMSEKILYDOBON") )
 		EverybodyAttacksPlayerCheat();
-	}
-	// "OURGODGIVENRIGHTTOBEARARMS"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VRYB_\\HIP_aPNi_TaiSJGTNSbj")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "WEAPONSFORALL"
+	if ( !_CHEATCMP("LLAROFSNOPAEW") )
 		WeaponsForAllCheat();
-	}
-	// "ONSPEED"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "GJLQ`iR")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "TIMEFLIESWHENYOU"
+	if ( !_CHEATCMP("UOYNEHWSEILFEMIT") )
 		FastTimeCheat();
-	}
-	// "BOOOOOORING"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSPS\\jRVPZO")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "BOOOOORING"
+	if ( !_CHEATCMP("GNIROOOOOB") )
 		SlowTimeCheat();
-	}
-	// "WHEELSAREALLINEED"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "GJLOVgOHF]N[SeRNs")) {
-		KeyBoardCheatString[0] = ' ';
+
+#if GTA_VERSION < GTA3_PC_11
+	// "TURTOISE"
+	if ( !_CHEATCMP("ESIOTRUT") )
+		ArmourCheat();
+#else
+	// "TORTOISE"
+	if ( !_CHEATCMP("ESIOTROT") )
+		ArmourCheat();
+#endif
+
+	// "SKINCANCERFORME"
+	if ( !_CHEATCMP("EMROFRECNACNIKS") )
+		SunnyWeatherCheat();
+
+	// "ILIKESCOTLAND"
+	if ( !_CHEATCMP("DNALTOCSEKILI") )
+		CloudyWeatherCheat();
+
+	// "ILOVESCOTLAND"
+	if ( !_CHEATCMP("DNALTOCSEVOLI") )
+		RainyWeatherCheat();
+
+	// "PEASOUP"
+	if ( !_CHEATCMP("PUOSAEP") )
+		FoggyWeatherCheat();
+
+	// "MADWEATHER"
+	if ( !_CHEATCMP("REHTAEWDAM") )
+		FastWeatherCheat();
+
+	// "ANICESETOFWHEELS"
+	if ( !_CHEATCMP("SLEEHWFOTESECINA") )
 		OnlyRenderWheelsCheat();
-	}
-	//COMEFLYWITHME
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HROUVr\\SGPZWJ")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "CHITTYCHITTYBB"
+	if ( !_CHEATCMP("BBYTTIHCYTTIHC") )
 		ChittyChittyBangBangCheat();
-	}
-	// "GRIPISEVERYTHING"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSPIatULWP`QWi_M")) {
-		KeyBoardCheatString[0] = ' ';
+
+	// "CORNERSLIKEMAD"
+	if ( !_CHEATCMP("DAMEKILSRENROC") )
 		StrongGripCheat();
-	}
-	// "CHASESTAT"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WF[TRnDOD")) {
-		KeyBoardCheatString[0] = ' ';
-		DoShowChaseStatCheat();
-	}
-	// "CHICKSWITHGUNS"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VS\\HUoL^TVPQOc")) {
-		KeyBoardCheatString[0] = ' ';
-		DoChicksWithGunsCheat();
-	}
-	// "ICANTTAKEITANYMORE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HWVNfiD[JPXI[t[G_\\")) {
-		KeyBoardCheatString[0] = ' ';
-		SuicideCheat();
-	}
-	// "GREENLIGHT"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WMNJYiHLSR")) {
-		KeyBoardCheatString[0] = ' ';
-		TrafficLightsCheat();
-	}
-	// "MIAMITRAFFIC"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "FNMGNmWPNLVU")) {
-		KeyBoardCheatString[0] = ' ';
-		MadCarsCheat();
-	}
-	// "AHAIRDRESSERSCAR"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UFJT_`VZF]QZPaUG")) {
-		KeyBoardCheatString[0] = ' ';
-		PinkCarsCheat();
-	}
-	// "IWANTITPAINTEDBLACK"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "NHHMO_H[OTNX[iaT]jS")) {
-		KeyBoardCheatString[0] = ' ';
-		BlackCarsCheat();
-	}
-	// "TRAVELINSTYLE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HQ`U`iLSFaNZ[")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_BLOODRA);
-	}
-	// "THELASTRIDE"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HIPSanDSFSa")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_ROMERO);
-	}
-	// "ROCKANDROLLCAR"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UFJMYjUKOLXKVr")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_LOVEFIST);
-	}
-	// "RUBBISHCAR"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UFJI`dEIV]")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_TRASH);
-	}
-	// "GETTHEREQUICKLY"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\QRDVpTLSPU\\[eT")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_BLOODRB);
-	}
-	// "GETTHEREFAST"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WXHGRmHOU_RO")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_SABRETUR);
-	}
-	// "BETTERTHANWALKING"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSPLY\\ZUBSaZLtaK^")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_CADDY);
-	}
-	// "GETTHEREFASTINDEED"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "GJLE[dWZBQfZLvRXa[^WHL")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_HOTRINA);
-	}
-	// "GETTHEREAMAZINGLYFAST"
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WXHGfgJUJeNUHe_Kdg^HJ")) {
-		KeyBoardCheatString[0] = ' ';
-		VehicleCheat(MI_HOTRINB);
-	}
-	// LOOKLIKELANCE
-	else if (!Cheat_strncmp(KeyBoardCheatString, "HHUBY`NPMV\\WS")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igbuddy");
-	}
-	// IWANTBIGTITS
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VYPUTdE[OLdQ")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igcandy");
-	}
-	// MYSONISALAWYER
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UJ`XNgDZJY\\[`m")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igken");
-	}
-	// ILOOKLIKEHILARY
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\WHMVcHRJWXWVlV")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("ighlary");
-	}
-	// ROCKANDROLLMAN
-	else if (!Cheat_strncmp(KeyBoardCheatString, "QFTMYjUKOLXKVr")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igjezz");
-	}
-	// ONEARMEDBANDIT
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WNKON]GLN]NMUo")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igphil");
-	}
-	// IDONTHAVETHEMONEYSONNY
-	else if (!Cheat_strncmp(KeyBoardCheatString, "\\SUP`tHUPXRP[ecGdgXRGN")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igsonny");
-	}
-	// FOXYLITTLETHING
-	else if (!Cheat_strncmp(KeyBoardCheatString, "JSPIa`O[UTYa_oS")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igmerc");
-	}
-	// WELOVEOURDICK
-	else if (!Cheat_strncmp(KeyBoardCheatString, "NHPE_pRLWZYM^")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igdick");
-	}
-	// CHEATSHAVEBEENCRACKED
-	else if (!Cheat_strncmp(KeyBoardCheatString, "GJRDNmFUFPOM]aUYpTOKF")) {
-		KeyBoardCheatString[0] = ' ';
-		ChangePlayerModel("igdiaz");
-	}
-	// DEEPFRIEDMARSBARS
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VWHC`mDTEPVZMpRK")) {
-		KeyBoardCheatString[0] = ' ';
-		gfTommyFatness = 0.26f;
-	}
-	// PROGRAMMER
-	else if (!Cheat_strncmp(KeyBoardCheatString, "UJTNNmJVS[")) {
-		KeyBoardCheatString[0] = ' ';
-		gfTommyFatness = -0.3f;
-	}
-	// SEAWAYS
-	else if (!Cheat_strncmp(KeyBoardCheatString, "V^HXN`V")) {
-		KeyBoardCheatString[0] = ' ';
-		BackToTheFuture();
-	}
-	// LOADSOFLITTLETHINGS
-	else if (!Cheat_strncmp(KeyBoardCheatString, "VLUJUoHSU_VTMo`J]bV")) {
-		KeyBoardCheatString[0] = ' ';
-		SpecialCarCheats();
-	}
-	// HOPINGIRL
-	else if (!Cheat_strncmp(KeyBoardCheatString, "OWPH[dSVI")) {
-		KeyBoardCheatString[0] = ' ';
-		PickUpChicksCheat();
-	}
-	//CERTAINDEATH
-	else if (!Cheat_strncmp(KeyBoardCheatString, "KYHFQiLHU]RK")) {
-		KeyBoardCheatString[0] = ' ';
-		CSmokeTrails::CigOn = !CSmokeTrails::CigOn;
-	}
-	//AIRSHIP
-	else if (!Cheat_strncmp(KeyBoardCheatString, "SNOT_dD")) {
-		KeyBoardCheatString[0] = ' ';
-		FlyingFishCheat();
-	}
-	//FANNYMAGNET
-	else if (!Cheat_strncmp(KeyBoardCheatString, "WJUHNh\\UOLS")) {
-		KeyBoardCheatString[0] = ' ';
-		FannyMagnetCheat();
-	}
+
+	// "NASTYLIMBSCHEAT"
+	if ( !_CHEATCMP("TAEHCSBMILYTSAN") )
+		NastyLimbsCheat();
 
 #ifdef KANGAROO_CHEAT
 	// "KANGAROO"
@@ -1559,40 +995,24 @@ void CPad::AddToPCCheatString(char c)
 		CPed::SwitchDebugDisplay();
 #endif
 
-#ifdef RESTORE_ALLCARSHELI_CHEAT
+#ifdef ALLCARSHELI_CHEAT
 	// "CARSAREHELI"
 	if (!_CHEATCMP("ILEHERASRAC"))
 		AllCarsHeliCheat();
 #endif
 
-#ifdef WALLCLIMB_CHEAT
-	// "SPIDERCAR"
-	if (!_CHEATCMP("RACREDIPS"))
-		WallClimbingCheat();
+#ifdef ALT_DODO_CHEAT
+	// "IWANTTOMASTERDODO"
+	if (!_CHEATCMP("ODODRETSAMOTTNAWI"))
+		AltDodoCheat();
 #endif
 
-#if !defined(PC_WATER) && defined(WATER_CHEATS)
-	// SEABEDCHEAT
-	if (!_CHEATCMP("TAEHCDEBAESON"))
-		NoSeaBedCheat();
-
-	// WATERLAYERSCHEAT
-	if (!_CHEATCMP("TAEHCSREYALRETAW"))
-		RenderWaterLayersCheat();
-#endif
-
-#undef _CHEATCMP
+	#undef _CHEATCMP
 }
 
 #ifdef XINPUT
-int CPad::XInputJoy1 = 0;
-int CPad::XInputJoy2 = 1;
 void CPad::AffectFromXinput(uint32 pad)
 {
-	pad = pad == 0 ? XInputJoy1 : XInputJoy2;
-	if (pad == -1) // LoadINIControllerSettings can set it to -1
-		return;
-
 	XINPUT_STATE xstate;
 	memset(&xstate, 0, sizeof(XINPUT_STATE));
 	if (XInputGetState(pad, &xstate) == ERROR_SUCCESS)
@@ -1685,15 +1105,18 @@ void CPad::UpdatePads(void)
 		IsAffectedByController = false;
 #endif
 
-	if ( CReplay::IsPlayingBackFromFile() && !FrontEndMenuManager.m_bMenuActive )
+	if ( CReplay::IsPlayingBackFromFile() )
 		bUpdate = false;
 
 	if ( bUpdate )
+	{
 		GetPad(0)->Update(0);
+#ifndef SQUEEZE_PERFORMANCE
+		GetPad(1)->Update(0);
+#endif
+	}
 
-#ifndef MASTER
-	GetPad(1)->Update(1);
-#else
+#if defined(MASTER) && !defined(XINPUT)
 	GetPad(1)->NewState.Clear();
 	GetPad(1)->OldState.Clear();
 #endif
@@ -1985,23 +1408,14 @@ void CPad::Update(int16 pad)
 
 	ProcessPCSpecificStuff();
 
-	if (NewState.CheckForInput())
-		LastTimeTouched = CTimer::GetTimeInMilliseconds();
-	
 	if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
 		iCurrHornHistory = 0;
 
 	bHornHistory[iCurrHornHistory] = GetHorn();
 
-	for (int32 i = DRUNK_STEERING_BUFFER_SIZE - 2; i >= 0; i--) {
-		SteeringLeftRightBuffer[i + 1] = SteeringLeftRightBuffer[i];
-	}
 
 	if ( !bDisplayNoControllerMessage )
 		CGame::bDemoMode = false;
-
-	if ( JustOutOfFrontend != 0 )
-		--JustOutOfFrontend;
 }
 
 void CPad::DoCheats(void)
@@ -2086,12 +1500,12 @@ CPad *CPad::GetPad(int32 pad)
 #define CURMODE (Mode)
 #endif
 
+
 int16 CPad::GetSteeringLeftRight(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
-	int16 value;
 	switch (CURMODE)
 	{
 		case 0:
@@ -2101,12 +1515,9 @@ int16 CPad::GetSteeringLeftRight(void)
 			int16 dpad = (NewState.DPadRight - NewState.DPadLeft) / 2;
 
 			if ( Abs(axis) > Abs(dpad) )
-				value = axis;
+				return axis;
 			else
-				value = dpad;
-
-			SteeringLeftRightBuffer[0] = value;
-			value = SteeringLeftRightBuffer[DrunkDrivingBufferUsed];
+				return dpad;
 
 			break;
 		}
@@ -2114,18 +1525,13 @@ int16 CPad::GetSteeringLeftRight(void)
 		case 1:
 		case 3:
 		{
-			SteeringLeftRightBuffer[0] = NewState.LeftStickX;
-			value = SteeringLeftRightBuffer[DrunkDrivingBufferUsed];
-			break;
-		}
-		default:
-		{
-			value = 0;
+			return NewState.LeftStickX;
+
 			break;
 		}
 	}
 
-	return value;
+	return 0;
 }
 
 int16 CPad::GetSteeringUpDown(void)
@@ -2139,7 +1545,7 @@ int16 CPad::GetSteeringUpDown(void)
 		case 2:
 		{
 			int16 axis = NewState.LeftStickY;
-			int16 dpad = (NewState.DPadDown - NewState.DPadUp) / 2;
+			int16 dpad = (NewState.DPadUp - NewState.DPadDown) / 2;
 
 			if ( Abs(axis) > Abs(dpad) )
 				return axis;
@@ -2248,6 +1654,7 @@ int16 CPad::GetPedWalkLeftRight(void)
 	return 0;
 }
 
+
 int16 CPad::GetPedWalkUpDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
@@ -2303,36 +1710,6 @@ int16 CPad::GetAnalogueUpDown(void)
 		case 3:
 		{
 			return NewState.LeftStickY;
-
-			break;
-		}
-	}
-
-	return 0;
-}
-
-int16 CPad::GetAnalogueLeftRight(void)
-{
-	switch (CURMODE)
-	{
-		case 0:
-		case 2:
-		{
-			int16 axis = NewState.LeftStickX;
-			int16 dpad = (NewState.DPadRight - NewState.DPadLeft) / 2;
-
-			if ( Abs(axis) > Abs(dpad) )
-				return axis;
-			else
-				return dpad;
-
-			break;
-		}
-
-		case 1:
-		case 3:
-		{
-			return NewState.LeftStickX;
 
 			break;
 		}
@@ -2451,6 +1828,7 @@ bool CPad::HornJustDown(void)
 
 	return false;
 }
+
 
 bool CPad::GetCarGunFired(void)
 {
@@ -2582,10 +1960,6 @@ bool CPad::GetExitVehicle(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
-
-	if ( JustOutOfFrontend != 0 )
-		return false;
-
 	switch (CURMODE)
 	{
 		case 0:
@@ -2611,9 +1985,6 @@ bool CPad::GetExitVehicle(void)
 bool CPad::ExitVehicleJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
-		return false;
-
-	if ( JustOutOfFrontend != 0 )
 		return false;
 
 	switch (CURMODE)
@@ -2742,53 +2113,6 @@ int16 CPad::GetAccelerate(void)
 	return 0;
 }
 
-bool CPad::CycleCameraModeJustDown(void)
-{
-	bool result;
-	switch (CURMODE)
-	{
-		case 0:
-		case 2:
-		case 3:
-		{
-			result = !!(NewState.Select && !OldState.Select);
-
-			break;
-		}
-
-		case 1:
-		{
-			result = !!(NewState.DPadUp && !OldState.DPadUp);
-
-			break;
-		}
-		default:
-		{
-			result = false;
-			break;
-		}
-	}
-
-	if (!result)
-	{
-		switch (CURMODE)
-		{
-			case 1:
-			{
-				result = !!(NewState.DPadDown && !OldState.DPadDown);
-				break;
-			}
-			default:
-			{
-				result = false;
-				break;
-			}
-		}
-	}
-
-	return result;
-}
-
 bool CPad::CycleCameraModeUpJustDown(void)
 {
 	switch (CURMODE)
@@ -2876,6 +2200,7 @@ bool CPad::ChangeStationJustDown(void)
 	return false;
 }
 
+
 bool CPad::CycleWeaponLeftJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
@@ -2946,46 +2271,6 @@ bool CPad::TargetJustDown(void)
 	return false;
 }
 
-bool CPad::CollectPickupJustDown(void)
-{
-	if ( ArePlayerControlsDisabled() )
-		return false;
-
-	switch (CURMODE)
-	{
-		case 0:
-		case 1:
-		{
-			return !!(NewState.LeftShoulder1 && !OldState.LeftShoulder1);
-
-			break;
-		}
-		case 2:
-		{
-			return !!(NewState.Triangle && !OldState.Triangle);
-
-			break;
-		}
-
-		case 3:
-		{
-			return !!(NewState.Circle && !OldState.Circle);
-
-			break;
-		}
-	}
-
-	return false;
-}
-
-bool CPad::DuckJustDown(void)
-{
-	if (ArePlayerControlsDisabled())
-		return false;
-
-	return !!(NewState.LeftShock && !OldState.LeftShock);
-}
-
 bool CPad::JumpJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
@@ -3034,23 +2319,23 @@ bool CPad::ShiftTargetRightJustDown(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
-	return !!(NewState.LeftShoulder1 && !OldState.LeftShoulder1) || !!(NewState.RightShoulder2 && !OldState.RightShoulder2);
+	return !!(NewState.RightShoulder2 && !OldState.RightShoulder2);
 }
 
 bool CPad::GetAnaloguePadUp(void)
 {
 	static int16 oldfStickY = 0;
 
-	int16 leftStickY = CPad::GetPad(0)->GetLeftStickY();
+	int16 Y = CPad::GetPad(0)->GetAnalogueUpDown();
 
-	if ( leftStickY < -15 && oldfStickY >= -5 )
+	if ( Y < 0 && oldfStickY >= 0 )
 	{
-		oldfStickY = leftStickY;
+		oldfStickY = Y;
 		return true;
 	}
 	else
 	{
-		oldfStickY = leftStickY;
+		oldfStickY = Y;
 		return false;
 	}
 }
@@ -3059,16 +2344,16 @@ bool CPad::GetAnaloguePadDown(void)
 {
 	static int16 oldfStickY = 0;
 
-	int16 leftStickY = CPad::GetPad(0)->GetLeftStickY();
+	int16 Y = CPad::GetPad(0)->GetAnalogueUpDown();
 
-	if ( leftStickY > 15 && oldfStickY <= 5 )
+	if ( Y > 0 && oldfStickY <= 0 )
 	{
-		oldfStickY = leftStickY;
+		oldfStickY = Y;
 		return true;
 	}
 	else
 	{
-		oldfStickY = leftStickY;
+		oldfStickY = Y;
 		return false;
 	}
 }
@@ -3077,16 +2362,16 @@ bool CPad::GetAnaloguePadLeft(void)
 {
 	static int16 oldfStickX = 0;
 
-	int16 leftStickX = CPad::GetPad(0)->GetLeftStickX();
+	int16 X = CPad::GetPad(0)->GetPedWalkLeftRight();
 
-	if ( leftStickX < -15 && oldfStickX >= -5 )
+	if ( X < 0 && oldfStickX >= 0 )
 	{
-		oldfStickX = leftStickX;
+		oldfStickX = X;
 		return true;
 	}
 	else
 	{
-		oldfStickX = leftStickX;
+		oldfStickX = X;
 		return false;
 	}
 }
@@ -3095,16 +2380,16 @@ bool CPad::GetAnaloguePadRight(void)
 {
 	static int16 oldfStickX = 0;
 
-	int16 leftStickX = CPad::GetPad(0)->GetLeftStickX();
+	int16 X = CPad::GetPad(0)->GetPedWalkLeftRight();
 
-	if ( leftStickX > 15 && oldfStickX <= 5 )
+	if ( X > 0 && oldfStickX <= 0 )
 	{
-		oldfStickX = leftStickX;
+		oldfStickX = X;
 		return true;
 	}
 	else
 	{
-		oldfStickX = leftStickX;
+		oldfStickX = X;
 		return false;
 	}
 }
@@ -3243,13 +2528,9 @@ int16 CPad::SniperModeLookLeftRight(void)
 	int16 axis = NewState.LeftStickX;
 	int16 dpad = (NewState.DPadRight - NewState.DPadLeft) / 2;
 
-	if ( Abs(axis) > Abs(dpad) ) {
-		if ( Abs(axis) > 35.0f ) {
-		  return (axis > 0.f ? axis - 35.f : axis + 35.f) * (128.f / (128 - 35));
-		} else {
-		  return 0;
-		}
-	} else
+	if ( Abs(axis) > Abs(dpad) )
+		return axis;
+	else
 		return dpad;
 }
 
@@ -3257,24 +2538,23 @@ int16 CPad::SniperModeLookUpDown(void)
 {
 	int16 axis = NewState.LeftStickY;
 	int16 dpad;
-
 #ifdef FIX_BUGS
 	axis = -axis;
 #endif
+#ifndef INVERT_LOOK_FOR_PAD
+	dpad = (NewState.DPadUp - NewState.DPadDown) / 2;
+#else
 	if (CPad::bInvertLook4Pad) {
 		axis = -axis;
 		dpad = (NewState.DPadDown - NewState.DPadUp) / 2;
 	} else {
 		dpad = (NewState.DPadUp - NewState.DPadDown) / 2;
 	}
+#endif
 
-	if ( Abs(axis) > Abs(dpad) ) {
-	    if ( Abs(axis) > 35.0f ) {
-	      return (axis > 0.f ? axis - 35.f : axis + 35.f) * (128.f / (128 - 35));
-	    } else {
-	      return 0;
-	    }
-	} else
+	if ( Abs(axis) > Abs(dpad) )
+		return axis;
+	else
 		return dpad;
 }
 
@@ -3296,11 +2576,14 @@ int16 CPad::LookAroundLeftRight(void)
 int16 CPad::LookAroundUpDown(void)
 {
 	int16 axis = GetPad(0)->NewState.RightStickY;
+
 #ifdef FIX_BUGS
 	axis = -axis;
 #endif
+#ifdef INVERT_LOOK_FOR_PAD
 	if (CPad::bInvertLook4Pad)
 		axis = -axis;
+#endif
 
 	if ( Abs(axis) > 85 && !GetLookBehindForPed() )
 		return (int16) ( (axis + ( ( axis > 0 ) ? -85 : 85) )
@@ -3313,6 +2596,7 @@ int16 CPad::LookAroundUpDown(void)
 	return 0;
 }
 
+
 void CPad::ResetAverageWeapon(void)
 {
 	AverageWeapon = GetWeapon();
@@ -3321,58 +2605,37 @@ void CPad::ResetAverageWeapon(void)
 
 void CPad::PrintErrorMessage(void)
 {
-	if (TheCamera.m_WideScreenOn)
-		return;
-
 	if ( bDisplayNoControllerMessage && !CGame::playingIntro && !FrontEndMenuManager.m_bMenuActive )
 	{
-		CSprite2d::DrawRect(CRect(SCREEN_STRETCH_X(20.0f), SCREEN_SCALE_FROM_BOTTOM(130.0f), SCREEN_STRETCH_FROM_RIGHT(20.0f), SCREEN_SCALE_Y(140.0f)), CRGBA(50, 50, 50, 210));
-#ifdef FIX_BUGS
-		CFont::SetScale(SCREEN_SCALE_X(0.85f), SCREEN_SCALE_Y(1.0f));
-#else
 		CFont::SetScale(0.85f, 1.0f);
-#endif
 		CFont::SetJustifyOff();
 		CFont::SetBackgroundOff();
-#ifdef FIX_BUGS
-		CFont::SetCentreSize(SCREEN_SCALE_X(DEFAULT_SCREEN_WIDTH - 20));
-#else
-		CFont::SetCentreSize(SCREEN_WIDTH - 20);
-#endif
+		CFont::SetCentreSize(SCREEN_SCALE_X(SCREEN_WIDTH - 20));
 		CFont::SetCentreOn();
 		CFont::SetPropOn();
 		CFont::SetColor(CRGBA(255, 255, 200, 200));
-		CFont::SetFontStyle(FONT_STANDARD);
+		CFont::SetFontStyle(FONT_BANK);
 		CFont::PrintString
 		(
 			SCREEN_WIDTH  / 2,
-			SCREEN_HEIGHT / 2 - SCREEN_SCALE_Y(40.0f),
+			SCREEN_HEIGHT / 2,
 			TheText.Get("NOCONT") // Please reconnect an analog controller (DUALSHOCK@) or analog controller (DUALSHOCK@2). to controller port 1 to continue
 		);
 	}
 	else if ( bObsoleteControllerMessage )
 	{
-		CSprite2d::DrawRect(CRect(SCREEN_STRETCH_X(20.0f), SCREEN_SCALE_FROM_BOTTOM(130.0f), SCREEN_STRETCH_FROM_RIGHT(20.0f), SCREEN_SCALE_Y(140.0f)), CRGBA(50, 50, 50, 210));
-#ifdef FIX_BUGS
-		CFont::SetScale(SCREEN_SCALE_X(0.85f), SCREEN_SCALE_Y(1.0f));
-#else
 		CFont::SetScale(0.85f, 1.0f);
-#endif
 		CFont::SetJustifyOff();
 		CFont::SetBackgroundOff();
-#ifdef FIX_BUGS
-		CFont::SetCentreSize(SCREEN_SCALE_X(DEFAULT_SCREEN_WIDTH - 20));
-#else
-		CFont::SetCentreSize(SCREEN_WIDTH - 20);
-#endif
+		CFont::SetCentreSize(SCREEN_SCALE_X(SCREEN_WIDTH - 20));
 		CFont::SetCentreOn();
 		CFont::SetPropOn();
 		CFont::SetColor(CRGBA(255, 255, 200, 200));
-		CFont::SetFontStyle(FONT_STANDARD);
+		CFont::SetFontStyle(FONT_BANK);
 		CFont::PrintString
 		(
 			SCREEN_WIDTH  / 2,
-			SCREEN_HEIGHT / 2 - SCREEN_SCALE_Y(40.0f),
+			SCREEN_HEIGHT / 2,
 			TheText.Get("WRCONT") // The controller connected to controller port 1 is an unsupported controller. Grand Theft Auto III requires an analog controller (DUALSHOCK@) or analog controller (DUALSHOCK@2).
 		);
 	}
@@ -3390,33 +2653,20 @@ void CPad::ResetCheats(void)
 {
 	CWeather::ReleaseWeather();
 
-	gbFastTime = false;
 	CPopulation::ms_bGivePedsWeapons = false;
-	CTimer::SetTimeScale(1.0f);
+
+	CPed::bNastyLimbsCheat = false;
+	CPed::bPedCheat2 = false;
+	CPed::bPedCheat3 = false;
 
 	CVehicle::bWheelsOnlyCheat = false;
 	CVehicle::bAllDodosCheat = false;
 	CVehicle::bCheat3 = false;
 	CVehicle::bCheat4 = false;
 	CVehicle::bCheat5 = false;
-	CVehicle::bAllTaxisHaveNitro = false;
-	CVehicle::bHoverCheat = false;
-	CVehicle::bCheat8 = false;
-	CVehicle::bCheat9 = false;
-	CVehicle::bCheat10 = false;
-#ifdef RESTORE_ALLCARSHELI_CHEAT
-	bAllCarCheat = false;
-#endif
-	gbBlackCars = false;
-	gbPinkCars = false;
 
-	CCarCtrl::bMadDriversCheat = false;
-	CTrafficLights::bGreenLightsCheat = false;
-	CStats::ShowChaseStatOnScreen = 0;
-	CPed::bNastyLimbsCheat = false;
-	CPed::bFannyMagnetCheat = false;
-	CPed::bPedCheat3 = false;
-
+	gbFastTime = false;
+	CTimer::SetTimeScale(1.0f);
 }
 
 char *CPad::EditString(char *pStr, int32 nSize)
@@ -3620,14 +2870,4 @@ int32 *CPad::EditCodesForControls(int32 *pRsKeys, int32 nSize)
 		*pRsKeys = rsAPPS;
 
 	return pRsKeys;
-}
-
-void CPad::FixPadsAfterSave(void)
-{
-	UpdatePads();
-	if ( bObsoleteControllerMessage )
-	{
-		bObsoleteControllerMessage = false;
-		GetPad(0)->Phase = 0;
-	}
 }

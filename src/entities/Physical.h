@@ -19,6 +19,7 @@ public:
 
 	int32 m_audioEntityId;
 	float m_phys_unused1;
+	CTreadable *m_treadable[2];	// car and ped
 	uint32 m_nLastTimeCollided;
 	CVector m_vecMoveSpeed;		// velocity
 	CVector m_vecTurnSpeed;		// angular velocity
@@ -39,6 +40,7 @@ public:
 	int8 m_phys_unused2;
 	uint8 m_nStaticFrames;
 	uint8 m_nCollisionRecords;
+	bool m_bIsVehicleBeingShifted;
 	CEntity *m_aCollisionRecords[PHYSICAL_MAX_COLLISIONRECORDS];
 
 	float m_fDistanceTravelled;
@@ -52,16 +54,11 @@ public:
 	uint8 bIsHeavy : 1;
 	uint8 bAffectedByGravity : 1;
 	uint8 bInfiniteMass : 1;
-	uint8 m_phy_flagA08 : 1;
 	uint8 bIsInWater : 1;
+	uint8 m_phy_flagA10 : 1; // unused
 	uint8 m_phy_flagA20 : 1; // unused
 	uint8 bHitByTrain : 1;
 	uint8 bSkipLineCol : 1;
-
-	uint8 bIsFrozen : 1;
-	uint8 bDontLoadCollision : 1;
-	uint8 m_bIsVehicleBeingShifted : 1;	// wrong name - also used on but never set for peds
-	uint8 bJustCheckCollision : 1;	// just see if there is a collision
 
 	uint8 m_nSurfaceTouched;
 	int8 m_nZoneLevel;
@@ -119,17 +116,6 @@ public:
 	void SetMoveSpeed(const CVector& speed) {
 		m_vecMoveSpeed = speed;
 	}
-	void AddToMoveSpeed(float x, float y, float z) {
-		m_vecMoveSpeed.x += x;
-		m_vecMoveSpeed.y += y;
-		m_vecMoveSpeed.z += z;
-	}
-	void AddToMoveSpeed(const CVector& addition) {
-		m_vecMoveSpeed += addition;
-	}
-	void AddToMoveSpeed(const CVector2D& addition) {
-		m_vecMoveSpeed += CVector(addition.x, addition.y, 0.0f);
-	}
 	const CVector &GetTurnSpeed() { return m_vecTurnSpeed; }
 	void SetTurnSpeed(float x, float y, float z) {
 		m_vecTurnSpeed.x = x;
@@ -158,13 +144,11 @@ public:
 	void ApplyFrictionTurnForce(const CVector &j, const CVector &p) { ApplyFrictionTurnForce(j.x, j.y, j.z, p.x, p.y, p.z); }
 	// springRatio: 1.0 fully extended, 0.0 fully compressed
 	bool ApplySpringCollision(float springConst, CVector &springDir, CVector &point, float springRatio, float bias);
-	bool ApplySpringCollisionAlt(float springConst, CVector &springDir, CVector &point, float springRatio, float bias, CVector &forceDir);
 	bool ApplySpringDampening(float damping, CVector &springDir, CVector &point, CVector &speed);
 	void ApplyGravity(void);
 	void ApplyFriction(void);
 	void ApplyAirResistance(void);
 	bool ApplyCollision(CPhysical *B, CColPoint &colpoint, float &impulseA, float &impulseB);
-	bool ApplyCollision(CColPoint &colpoint, float &impulse);
 	bool ApplyCollisionAlt(CEntity *B, CColPoint &colpoint, float &impulse, CVector &moveSpeed, CVector &turnSpeed);
 	bool ApplyFriction(CPhysical *B, float adhesiveLimit, CColPoint &colpoint);
 	bool ApplyFriction(float adhesiveLimit, CColPoint &colpoint);
@@ -175,3 +159,5 @@ public:
 	bool CheckCollision(void);
 	bool CheckCollision_SimpleCar(void);
 };
+
+VALIDATE_SIZE(CPhysical, 0x128);

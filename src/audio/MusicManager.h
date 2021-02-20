@@ -11,53 +11,41 @@ public:
 };
 
 class CVehicle;
-class CPed;
 
 class cMusicManager
 {
 public:
 	bool m_bIsInitialised;
 	bool m_bDisabled;
+	uint8 m_nMusicMode;
+	uint8 m_nCurrentStreamedSound;
+	uint8 m_nPreviousStreamedSound;
+	bool m_bFrontendTrackFinished;
+	bool m_bPlayInFrontend;
 	bool m_bSetNextStation;
-	uint8 m_nVolumeLatency;
-	uint8 m_nCurrentVolume;
-	uint8 m_nMaxVolume;
-	uint32 m_nAnnouncement;
+	uint8 m_nAnnouncement;
+	bool m_bPreviousPlayerInCar;
+	bool m_bPlayerInCar;
 	bool m_bAnnouncementInProgress;
 	tStreamedSample m_aTracks[TOTAL_STREAMED_SOUNDS];
 	bool m_bResetTimers;
 	uint32 m_nResetTime;
+	uint32 m_nLastTrackServiceTime;
+	uint32 m_nTimer;
+	bool m_bDoTrackService;
+	bool m_bIgnoreTimeDelay;
+	bool m_bDontServiceAmbienceTrack;
 	bool m_bRadioSetByScript;
-	uint8 m_nRadioStationScript;
+	uint8 m_nRadioStation;
 	int32 m_nRadioPosition;
-	uint32 m_nRadioInCar;
-	uint32 m_nFrontendTrack;
-	uint32 m_nPlayingTrack;
-	uint8 m_nUpcomingMusicMode;
-	uint8 m_nMusicMode;
-	bool m_FrontendLoopFlag;
-	bool m_bTrackChangeStarted;
-	uint32 m_nNextTrack;
-	bool m_nNextLoopFlag;
-	bool m_bVerifyNextTrackStartedToPlay;
-	bool m_bGameplayAllowsRadio;
-	bool m_bRadioStreamReady;
-	int8 nFramesSinceCutsceneEnded;
-	bool m_bUserResumedGame;
-	bool m_bMusicModeChangeStarted;
-	uint8 m_nMusicModeToBeSet;
-	bool m_bEarlyFrontendTrack;
-	float aListenTimeArray[NUM_RADIOS];
-	float m_nLastTrackServiceTime;
+	uint8 m_nRadioInCar;
 
 public:
 	cMusicManager();
 	bool IsInitialised() { return m_bIsInitialised; }
-	uint8 GetMusicMode() { return m_nMusicMode; }
-	uint32 GetCurrentTrack() { return m_nPlayingTrack; }
+	uint32 GetMusicMode() { return m_nMusicMode; }
+	uint8 GetCurrentTrack() { return m_nCurrentStreamedSound; }
 
-	void ResetMusicAfterReload();
-	void SetStartingTrackPositions(uint8 isNewGameTimer);
 	bool Initialise();
 	void Terminate();
 
@@ -67,47 +55,35 @@ public:
 	bool PlayerInCar();
 	void DisplayRadioStationName();
 
-	void PlayAnnouncement(uint32);
-	void PlayFrontEndTrack(uint32, uint8);
-	void PreloadCutSceneMusic(uint32);
+	void PlayAnnouncement(uint8);
+	void PlayFrontEndTrack(uint8, uint8);
+	void PreloadCutSceneMusic(uint8);
 	void PlayPreloadedCutSceneMusic(void);
 	void StopCutSceneMusic(void);
-	uint32 GetRadioInCar(void);
+	uint8 GetRadioInCar(void);
 	void SetRadioInCar(uint32);
-	void SetRadioChannelByScript(uint32, int32);
+	void SetRadioChannelByScript(uint8, int32);
+
+	void ResetMusicAfterReload();
 
 	void ResetTimers(int32);
 	void Service();
 	void ServiceFrontEndMode();
 	void ServiceGameMode();
 	void ServiceAmbience();
-	void ServiceTrack(CVehicle *veh, CPed *ped);
+	void ServiceTrack();
 
 	bool UsesPoliceRadio(CVehicle *veh);
-	bool UsesTaxiRadio(CVehicle *veh);
-	uint32 GetTrackStartPos(uint32 track);
+	uint32 GetTrackStartPos(uint8);
 
 	void ComputeAmbienceVol(uint8 reset, uint8& outVolume);
 	bool ServiceAnnouncement();
 
-	uint32 GetCarTuning();
-	uint32 GetNextCarTuning();
+	uint8 GetCarTuning();
+	uint8 GetNextCarTuning();
 	bool ChangeRadioChannel();
-	void RecordRadioStats();
-	void SetUpCorrectAmbienceTrack();
-	float *GetListenTimeArray();
-	uint32 GetRadioPosition(uint32 station);
-	uint32 GetFavouriteRadioStation();
-	void SetMalibuClubTrackPos(uint8 pos);
-	void SetStripClubTrackPos(uint8 pos);
-	bool CheckForMusicInterruptions();
-
-	void Enable();
-	void Disable();
 };
 
 VALIDATE_SIZE(cMusicManager, 0x95C);
 
 extern cMusicManager MusicManager;
-extern bool g_bAnnouncementReadPosAlready; // we have a symbol of this so it was declared in .h
-float GetHeightScale();

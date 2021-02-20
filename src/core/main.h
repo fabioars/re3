@@ -1,16 +1,5 @@
 #pragma once
 
-#ifndef FINAL
-// defined in RwHelpder.cpp
-void PushRendergroup(const char *name);
-void PopRendergroup(void);
-#define PUSH_RENDERGROUP(str) PushRendergroup(str)
-#define POP_RENDERGROUP() PopRendergroup()
-#else
-#define PUSH_RENDERGROUP(str)
-#define POP_RENDERGROUP()
-#endif
-
 struct GlobalScene
 {
 	RpWorld *world;
@@ -40,7 +29,6 @@ class CSprite2d;
 bool DoRWStuffStartOfFrame(int16 TopRed, int16 TopGreen, int16 TopBlue, int16 BottomRed, int16 BottomGreen, int16 BottomBlue, int16 Alpha);
 bool DoRWStuffStartOfFrame_Horizon(int16 TopRed, int16 TopGreen, int16 TopBlue, int16 BottomRed, int16 BottomGreen, int16 BottomBlue, int16 Alpha);
 void DoRWStuffEndOfFrame(void);
-void PreAllocateRwObjects(void);
 void InitialiseGame(void);
 void LoadingScreen(const char *str1, const char *str2, const char *splashscreen);
 void LoadingIslandScreen(const char *levelName);
@@ -56,21 +44,6 @@ void TheModelViewer(void);
 #endif
 
 #ifdef LOAD_INI_SETTINGS
-bool LoadINISettings();
+void LoadINISettings();
 void SaveINISettings();
-void LoadINIControllerSettings();
-void SaveINIControllerSettings();
-#endif
-
-#ifdef NEW_RENDERER
-extern bool gbNewRenderer;
-bool FredIsInFirstPersonCam(void);
-#endif
-
-#ifdef DRAW_GAME_VERSION_TEXT
-extern bool gbDrawVersionText;
-#endif
-
-#ifdef NO_MOVIES
-extern bool gbNoMovies;
 #endif

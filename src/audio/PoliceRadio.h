@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Crime.h"
+#include "Wanted.h"
 
 struct cAMCrime {
 	int32 type;
@@ -43,4 +43,4 @@ public:
 	}
 };
 
-VALIDATE_SIZE(cPoliceRadioQueue, 0x1BC);
+VALIDATE_SIZE(cPoliceRadioQueue, 444);

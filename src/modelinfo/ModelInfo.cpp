@@ -4,15 +4,18 @@
 #include "TempColModels.h"
 #include "ModelIndices.h"
 #include "ModelInfo.h"
+#include "Frontend.h"
 
 CBaseModelInfo *CModelInfo::ms_modelInfoPtrs[MODELINFOSIZE];
 
 CStore<CSimpleModelInfo, SIMPLEMODELSIZE> CModelInfo::ms_simpleModelStore;
+CStore<CMloModelInfo, MLOMODELSIZE> CModelInfo::ms_mloModelStore;
+CStore<CInstance, MLOINSTANCESIZE> CModelInfo::ms_mloInstanceStore;
 CStore<CTimeModelInfo, TIMEMODELSIZE> CModelInfo::ms_timeModelStore;
-CStore<CWeaponModelInfo, WEAPONMODELSIZE> CModelInfo::ms_weaponModelStore;
 CStore<CClumpModelInfo, CLUMPMODELSIZE> CModelInfo::ms_clumpModelStore;
 CStore<CPedModelInfo, PEDMODELSIZE> CModelInfo::ms_pedModelStore;
 CStore<CVehicleModelInfo, VEHICLEMODELSIZE> CModelInfo::ms_vehicleModelStore;
+CStore<CXtraCompsModelInfo, XTRACOMPSMODELSIZE> CModelInfo::ms_xtraCompsModelStore;
 CStore<C2dEffect, TWODFXSIZE> CModelInfo::ms_2dEffectStore;
 
 void
@@ -21,23 +24,17 @@ CModelInfo::Initialise(void)
 	int i;
 	CSimpleModelInfo *m;
 
-	debug("sizeof SimpleModelStore %d\n", sizeof(ms_simpleModelStore));
-	debug("sizeof TimeModelStore %d\n", sizeof(ms_timeModelStore));
-	debug("sizeof WeaponModelStore %d\n", sizeof(ms_weaponModelStore));
-	debug("sizeof ClumpModelStore %d\n", sizeof(ms_clumpModelStore));
-	debug("sizeof VehicleModelStore %d\n", sizeof(ms_vehicleModelStore));
-	debug("sizeof PedModelStore %d\n", sizeof(ms_pedModelStore));
-	debug("sizeof 2deffectsModelStore %d\n", sizeof(ms_2dEffectStore));
-
 	for(i = 0; i < MODELINFOSIZE; i++)
 		ms_modelInfoPtrs[i] = nil;
-	ms_2dEffectStore.Clear();
-	ms_simpleModelStore.Clear();
-	ms_timeModelStore.Clear();
-	ms_weaponModelStore.Clear();
-	ms_clumpModelStore.Clear();
-	ms_pedModelStore.Clear();
-	ms_vehicleModelStore.Clear();
+	ms_2dEffectStore.clear();
+	ms_mloInstanceStore.clear();
+	ms_xtraCompsModelStore.clear();
+	ms_simpleModelStore.clear();
+	ms_timeModelStore.clear();
+	ms_mloModelStore.clear();
+	ms_clumpModelStore.clear();
+	ms_pedModelStore.clear();
+	ms_vehicleModelStore.clear();
 
 	m = AddSimpleModel(MI_CAR_DOOR);
 	m->SetColModel(&CTempColModels::ms_colModelDoor1);
@@ -94,35 +91,53 @@ CModelInfo::ShutDown(void)
 	int i;
 	for(i = 0; i < ms_simpleModelStore.allocPtr; i++)
 		ms_simpleModelStore.store[i].Shutdown();
+	for(i = 0; i < ms_mloInstanceStore.allocPtr; i++)
+		ms_mloInstanceStore.store[i].Shutdown();
 	for(i = 0; i < ms_timeModelStore.allocPtr; i++)
 		ms_timeModelStore.store[i].Shutdown();
-	for(i = 0; i < ms_weaponModelStore.allocPtr; i++)
-		ms_weaponModelStore.store[i].Shutdown();
 	for(i = 0; i < ms_clumpModelStore.allocPtr; i++)
 		ms_clumpModelStore.store[i].Shutdown();
 	for(i = 0; i < ms_vehicleModelStore.allocPtr; i++)
 		ms_vehicleModelStore.store[i].Shutdown();
 	for(i = 0; i < ms_pedModelStore.allocPtr; i++)
 		ms_pedModelStore.store[i].Shutdown();
+	for(i = 0; i < ms_xtraCompsModelStore.allocPtr; i++)
+		ms_xtraCompsModelStore.store[i].Shutdown();
+	for(i = 0; i < ms_mloInstanceStore.allocPtr; i++)
+		ms_mloInstanceStore.store[i].Shutdown();
 	for(i = 0; i < ms_2dEffectStore.allocPtr; i++)
 		ms_2dEffectStore.store[i].Shutdown();
 
-	ms_2dEffectStore.Clear();
-	ms_simpleModelStore.Clear();
-	ms_timeModelStore.Clear();
-	ms_weaponModelStore.Clear();
-	ms_pedModelStore.Clear();
-	ms_clumpModelStore.Clear();
-	ms_vehicleModelStore.Clear();
+	ms_2dEffectStore.clear();
+	ms_simpleModelStore.clear();
+	ms_mloInstanceStore.clear();
+	ms_mloModelStore.clear();
+	ms_xtraCompsModelStore.clear();
+	ms_timeModelStore.clear();
+	ms_pedModelStore.clear();
+	ms_clumpModelStore.clear();
+	ms_vehicleModelStore.clear();
 }
 
 CSimpleModelInfo*
 CModelInfo::AddSimpleModel(int id)
 {
 	CSimpleModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_simpleModelStore.Alloc();
+	modelinfo = CModelInfo::ms_simpleModelStore.alloc();
 	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
 	modelinfo->Init();
+	return modelinfo;
+}
+
+CMloModelInfo *
+CModelInfo::AddMloModel(int id)
+{
+	CMloModelInfo *modelinfo;
+	modelinfo = CModelInfo::ms_mloModelStore.alloc();
+	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
+	modelinfo->m_clump = nil;
+	modelinfo->firstInstance = 0;
+	modelinfo->lastInstance = 0;
 	return modelinfo;
 }
 
@@ -130,17 +145,7 @@ CTimeModelInfo*
 CModelInfo::AddTimeModel(int id)
 {
 	CTimeModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_timeModelStore.Alloc();
-	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
-	modelinfo->Init();
-	return modelinfo;
-}
-
-CWeaponModelInfo*
-CModelInfo::AddWeaponModel(int id)
-{
-	CWeaponModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_weaponModelStore.Alloc();
+	modelinfo = CModelInfo::ms_timeModelStore.alloc();
 	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
 	modelinfo->Init();
 	return modelinfo;
@@ -150,7 +155,7 @@ CClumpModelInfo*
 CModelInfo::AddClumpModel(int id)
 {
 	CClumpModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_clumpModelStore.Alloc();
+	modelinfo = CModelInfo::ms_clumpModelStore.alloc();
 	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
 	modelinfo->m_clump = nil;
 	return modelinfo;
@@ -160,7 +165,7 @@ CPedModelInfo*
 CModelInfo::AddPedModel(int id)
 {
 	CPedModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_pedModelStore.Alloc();
+	modelinfo = CModelInfo::ms_pedModelStore.alloc();
 	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
 	modelinfo->m_clump = nil;
 	return modelinfo;
@@ -170,7 +175,7 @@ CVehicleModelInfo*
 CModelInfo::AddVehicleModel(int id)
 {
 	CVehicleModelInfo *modelinfo;
-	modelinfo = CModelInfo::ms_vehicleModelStore.Alloc();
+	modelinfo = CModelInfo::ms_vehicleModelStore.alloc();
 	CModelInfo::ms_modelInfoPtrs[id] = modelinfo;
 	modelinfo->m_clump = nil;
 	modelinfo->m_vehicleType = -1;
@@ -187,26 +192,11 @@ CModelInfo::GetModelInfo(const char *name, int *id)
 	CBaseModelInfo *modelinfo;
 	for(int i = 0; i < MODELINFOSIZE; i++){
 		modelinfo = CModelInfo::ms_modelInfoPtrs[i];
-	 	if(modelinfo && !CGeneral::faststricmp(modelinfo->GetModelName(), name)){
+	 	if(modelinfo && !CGeneral::faststricmp(modelinfo->GetName(), name)){
 			if(id)
 				*id = i;
 			return modelinfo;
 		}
-	}
-	return nil;
-}
-
-CBaseModelInfo*
-CModelInfo::GetModelInfo(const char *name, int minIndex, int maxIndex)
-{
-	if (minIndex > maxIndex)
-		return 0;
-
-	CBaseModelInfo *modelinfo;
-	for(int i = minIndex; i <= maxIndex; i++){
-		modelinfo = CModelInfo::ms_modelInfoPtrs[i];
-	 	if(modelinfo && !CGeneral::faststricmp(modelinfo->GetModelName(), name))
-			return modelinfo;
 	}
 	return nil;
 }
@@ -225,31 +215,37 @@ CModelInfo::IsBikeModel(int32 id)
 		((CVehicleModelInfo*)GetModelInfo(id))->m_vehicleType == VEHICLE_TYPE_BIKE;
 }
 
-bool
-CModelInfo::IsCarModel(int32 id)
+void
+CModelInfo::RemoveColModelsFromOtherLevels(eLevelName level)
 {
-	return GetModelInfo(id)->GetModelType() == MITYPE_VEHICLE &&
-		((CVehicleModelInfo*)GetModelInfo(id))->m_vehicleType == VEHICLE_TYPE_CAR;
+	ISLAND_LOADING_IS(LOW)
+	{
+		int i;
+		CBaseModelInfo *mi;
+		CColModel *colmodel;
+
+		for (i = 0; i < MODELINFOSIZE; i++) {
+			mi = GetModelInfo(i);
+			if (mi) {
+				colmodel = mi->GetColModel();
+				if (colmodel && colmodel->level != LEVEL_GENERIC && colmodel->level != level)
+					colmodel->RemoveCollisionVolumes();
+			}
+		}
+	}
 }
 
-bool
-CModelInfo::IsHeliModel(int32 id)
+void
+CModelInfo::ConstructMloClumps()
 {
-	return GetModelInfo(id)->GetModelType() == MITYPE_VEHICLE &&
-		((CVehicleModelInfo*)GetModelInfo(id))->m_vehicleType == VEHICLE_TYPE_HELI;
-}
-
-bool
-CModelInfo::IsPlaneModel(int32 id)
-{
-	return GetModelInfo(id)->GetModelType() == MITYPE_VEHICLE &&
-		((CVehicleModelInfo*)GetModelInfo(id))->m_vehicleType == VEHICLE_TYPE_PLANE;
+	for (int i = 0; i < ms_mloModelStore.allocPtr; i++)
+		ms_mloModelStore.store[i].ConstructClump();
 }
 
 void
 CModelInfo::ReInit2dEffects()
 {
-	ms_2dEffectStore.Clear();
+	ms_2dEffectStore.clear();
 
 	for (int i = 0; i < MODELINFOSIZE; i++) {
 		if (ms_modelInfoPtrs[i])

@@ -53,5 +53,3 @@ public:
 	static void Init(void);
 	static void Shutdown(void);
 };
-
-extern RwTexture *gpRubbishTexture[4];

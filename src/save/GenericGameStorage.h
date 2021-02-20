@@ -1,13 +1,9 @@
 #pragma once
 
-#include "Game.h"
 #include "PCSave.h"
 
 #define SLOT_COUNT (8)
 
-void InitRadioStationPositionList();
-int32 GetSavedRadioStationPosition(int32 station);
-void PopulateRadioStationPositionList();
 bool GenericSave(int file);
 bool GenericLoad();
 bool ReadInSizeofSaveFileBuffer(int32 &file, uint32 &size);
@@ -25,6 +21,8 @@ bool CheckDataNotCorrupt(int32 slot, char *name);
 bool RestoreForStartLoad();
 int align4bytes(int32 size);
 
+extern class CDate CompileDateAndTime;
+
 extern char DefaultPCSaveFileName[260];
 extern char ValidSaveName[260];
 extern char LoadFileName[256];
@@ -32,7 +30,7 @@ extern wchar SlotFileName[SLOT_COUNT][260];
 extern wchar SlotSaveDate[SLOT_COUNT][70];
 extern int CheckSum;
 extern enum eLevelName m_LevelToLoad;
-extern int Slots[SLOT_COUNT];
+extern int Slots[SLOT_COUNT+1];
 
 extern bool b_FoundRecentSavedGameWantToLoad;
 extern bool JustLoadedDontFadeInYet;

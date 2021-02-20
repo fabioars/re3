@@ -36,4 +36,6 @@ public:
 	void FiremanAI(void);
 	void MedicAI(void);
 };
-//VALIDATE_SIZE(CEmergencyPed, 0x554);
+#ifndef PED_SKIN
+VALIDATE_SIZE(CEmergencyPed, 0x554);
+#endif

@@ -7,10 +7,10 @@
 #include "Sprite.h"
 #include "Text.h"
 
+
 static char ObjectiveText[][28] = {
 	"No Obj",
 	"Wait on Foot",
-	"Wait on Foot for cop",
 	"Flee on Foot Till Safe",
 	"Guard Spot",
 	"Guard Area",
@@ -21,8 +21,6 @@ static char ObjectiveText[][28] = {
 	"Flee Char on Foot Till Safe",
 	"Flee Char on Foot Always",
 	"GoTo Char on Foot",
-	"GoTo Char on Foot walking",
-	"Hassle char",
 	"Follow Char in Formation",
 	"Leave Car",
 	"Enter Car as Passenger",
@@ -39,30 +37,15 @@ static char ObjectiveText[][28] = {
 	"Guard Attack",
 	"Set Leader",
 	"Follow Route",
-	"Solicit vehicle",
+	"Solicit",
 	"Take Taxi",
 	"Catch Train",
 	"Buy IceCream",
 	"Steal Any Car",
-	"Steal any mission car",
 	"Mug Char",
-	"Lv car die",
-	"Goto seat",
-	"Goto atm",
-	"Flee car",
-	"Sunbathe",
-	"Goto bus stop",
-	"Goto pizza",
-	"Goto shelter",
-	"Aim gun at",
-	"Wander",
-	"Wait on foot at shltr",
-	"Sprint to area",
-	"Kill char on boat",
-	"Solicit ped",
-	"Wait at bus stop",
-	"Goto ice cream van foot",
-	"Wait foot icecream van"
+#ifdef VC_PED_PORTS
+	"Leave Car and Die"
+#endif
 };
 
 static char StateText[][18] = {
@@ -99,14 +82,8 @@ static char StateText[][18] = {
 	"Investigate",
 	"Step away",
 	"On Fire",
-	"Bathe",
-	"Flash",
-	"Jog",
-	"Answer mobile",
-	"Hang out",
+	"Unknown",
 	"STATES_NO_AI",
-	"Abseil",
-	"Sit",
 	"Jump",
 	"Fall",
 	"GetUp",
@@ -129,7 +106,6 @@ static char StateText[][18] = {
 	"Exit Car",
 	"Hands Up",
 	"Arrested",
-	"Deply stgr"
 };
 
 static char PersonalityTypeText[][18] = {
@@ -156,7 +132,8 @@ static char PersonalityTypeText[][18] = {
 	"Geek Girl",
 	"Old Girl",
 	"Tough Girl",
-	"Tramp",
+	"Tramp Male",
+	"Tramp Female",
 	"Tourist",
 	"Prostitute",
 	"Criminal",
@@ -165,6 +142,8 @@ static char PersonalityTypeText[][18] = {
 	"Psycho",
 	"Steward",
 	"Sports Fan",
+	"Shopper",
+	"Old Shopper"
 };
 
 static char WaitStateText[][16] = {
@@ -189,21 +168,6 @@ static char WaitStateText[][16] = {
 	"Play HandsCower",
 	"Play Chat",
 	"Finish Flee",
-	"Sit down",
-	"Sit down rvrs",
-	"Sit up",
-	"Sit idle",
-	"Use atm",
-	"Sunbth pre",
-	"Sunbth down",
-	"Sunbth idle",
-	"Riot",
-	"Fast fall",
-	"Bomber",
-	"Stripper",
-	"Ground attack",
-	"Lance sitting",
-	"Handsup simple"
 };
 
 void
@@ -319,7 +283,7 @@ CPed::DebugRenderOnePedText(void)
 			CFont::SetJustifyOff();
 			CFont::SetColor(CRGBA(255, 255, 0, 255));
 			CFont::SetBackGroundOnlyTextOn();
-			CFont::SetFontStyle(1);
+			CFont::SetFontStyle(0);
 			AsciiToUnicode(StateText[m_nPedState], gUString);
 			CFont::PrintString(screenCoords.x, screenCoords.y, gUString);
 			AsciiToUnicode(ObjectiveText[m_objective], gUString);

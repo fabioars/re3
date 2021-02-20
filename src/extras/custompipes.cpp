@@ -1,4 +1,4 @@
-#define WITHD3D
+#define WITH_D3D
 #include "common.h"
 
 #ifdef EXTENDED_PIPELINES
@@ -133,11 +133,7 @@ EnvMapRender(void)
 	EnvMapCam->getFrame()->matrix.pos = camPos;
 	EnvMapCam->getFrame()->transform(&EnvMapCam->getFrame()->matrix, rw::COMBINEREPLACE);
 
-	rw::RGBA skycol;
-	skycol.red = CTimeCycle::GetSkyBottomRed();
-	skycol.green = CTimeCycle::GetSkyBottomGreen();
-	skycol.blue = CTimeCycle::GetSkyBottomBlue();
-	skycol.alpha = 255;
+	rw::RGBA skycol = { CTimeCycle::GetSkyBottomRed(), CTimeCycle::GetSkyBottomGreen(), CTimeCycle::GetSkyBottomBlue(), 255 };
 	EnvMapCam->clear(&skycol, rwCAMERACLEARZ|rwCAMERACLEARIMAGE);
 	RwCameraBeginUpdate(EnvMapCam);
 	bRenderingEnvMap = true;
@@ -342,7 +338,7 @@ ReadTweakValueTable(char *fp, InterpolatedValue &interp)
  */
 
 int32 VehiclePipeSwitch = VEHICLEPIPE_MATFX;
-float VehicleShininess = 1.0f;
+float VehicleShininess = 0.7f;	// the default is a bit extreme
 float VehicleSpecularity = 1.0f;
 InterpolatedFloat Fresnel(0.4f);
 InterpolatedFloat Power(18.0f);

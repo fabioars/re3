@@ -3,9 +3,7 @@
 enum {
 	EFFECT_LIGHT,
 	EFFECT_PARTICLE,
-	EFFECT_ATTRACTOR,
-	EFFECT_PED_ATTRACTOR,
-	EFFECT_SUNGLARE
+	EFFECT_ATTRACTOR
 };
 
 enum {
@@ -36,8 +34,6 @@ enum {
 	// same order as CPointLights flags, must start at 2
 	LIGHTFLAG_FOG_NORMAL = 2,	// can have light and fog
 	LIGHTFLAG_FOG_ALWAYS = 4,	// fog only
-	LIGHTFLAG_HIDE_OBJECT = 8,	// hide the object instead of rendering light (???)
-	LIGHTFLAG_LONG_DIST = 16,
 	LIGHTFLAG_FOG = (LIGHTFLAG_FOG_NORMAL|LIGHTFLAG_FOG_ALWAYS)
 };
 
@@ -67,11 +63,6 @@ public:
 		int8 type;
 		uint8 probability;
 	};
-	struct PedAttractor {
-		CVector queueDir;
-		CVector useDir;
-		int8 type;
-	};
 
 	CVector pos;
 	CRGBA col;
@@ -80,7 +71,6 @@ public:
 		Light light;
 		Particle particle;
 		Attractor attractor;
-		PedAttractor pedattr;
 	};
 
 	C2dEffect(void) {}
@@ -88,10 +78,14 @@ public:
 		if(type == EFFECT_LIGHT){
 			if(light.corona)
 				RwTextureDestroy(light.corona);
+#if GTA_VERSION >= GTA3_PC_11
 			light.corona = nil;
+#endif
 			if(light.shadow)
 				RwTextureDestroy(light.shadow);
+#if GTA_VERSION >= GTA3_PC_11
 			light.shadow = nil;
+#endif
 		}
 	}
 };

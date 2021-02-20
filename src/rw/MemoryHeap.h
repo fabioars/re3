@@ -17,6 +17,8 @@
 
 enum {
 	MEMID_FREE,
+	// IDs from LCS:
+/*
 	MEMID_GAME = 1,	// "Game"
 	MEMID_WORLD = 2,	// "World"
 	MEMID_ANIMATION = 3,	// "Animation"
@@ -36,6 +38,25 @@ enum {
 	MEMID_CARS = 17,	// "Cars"
 	MEMID_RENDER = 18,	// "Render"
 	MEMID_PED_ATTR = 19,	// "Ped Attr"
+*/
+	// III:
+	MEMID_GAME = 1,	// "Game"
+	MEMID_WORLD = 2,	// "World"
+	MEMID_ANIMATION = 3,	// "Animation"
+	MEMID_POOLS = 4,	// "Pools"
+	MEMID_DEF_MODELS = 5,	// "Default Models"
+	MEMID_STREAM = 6,	// "Streaming"
+	MEMID_STREAM_MODELS = 7,	// "Streamed Models" (instance)
+	MEMID_STREAM_TEXUTRES = 8,	// "Streamed Textures"
+	MEMID_TEXTURES = 9,	// "Textures"
+	MEMID_COLLISION = 10,	// "Collision"
+	MEMID_RENDERLIST = 11,	// ?
+	MEMID_GAME_PROCESS = 12,	// "Game Process"
+	MEMID_SCRIPT = 13,	// "Script"
+	MEMID_CARS = 14,	// "Cars"
+	MEMID_RENDER = 15,	// "Render"
+	MEMID_FRONTEND = 17,	// ?
+
 	NUM_MEMIDS,
 
 	NUM_FIXED_MEMBLOCKS = 6
@@ -177,7 +198,6 @@ public:
 	void TidyHeap(void);
 	uint32 GetMemoryUsed(int32 id);
 	uint32 GetBlocksUsed(int32 id);
-	int32 GetLargestFreeBlock(void) { return m_freeList.m_last.m_prev->m_size; }
 
 	void ParseHeap(void);
 

@@ -10,5 +10,4 @@ CDummyObject::CDummyObject(CObject *obj)
 		AttachToRwObject(obj->m_rwObject);
 	obj->DetachFromRwObject();
 	m_level = obj->m_level;
-	m_area = obj->m_area;
 }

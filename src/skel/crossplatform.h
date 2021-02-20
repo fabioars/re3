@@ -12,20 +12,12 @@ enum eWinVersion
     OS_WINXP,
 };
 
-#if !defined(_MSC_VER) && !defined(__CWCC__)
-char *_strdate(char *buf);
-#endif
-
 #ifdef _WIN32
 
 // As long as WITHWINDOWS isn't defined / <Windows.h> isn't included, we only need type definitions so let's include <IntSafe.h>.
 // NOTE: It's perfectly fine to include <Windows.h> here, but it can increase build size and time in *some* conditions, and maybe substantially in future if we'll use crossplatform.h more.
 #ifndef _INC_WINDOWS
-	#ifndef __MWERKS__
-		#include <IntSafe.h>
-	#else
-		#include <Windows.h>
-	#endif
+    #include <IntSafe.h>
 #endif
 #if defined RW_D3D9 || defined RWLIBS
 #include "win.h"
@@ -75,7 +67,7 @@ void CapturePad(RwInt32 padID);
 void joysChangeCB(int jid, int event);
 #endif
 
-#ifdef DETECT_JOYSTICK_MENU
+#ifdef DONT_TRUST_RECOGNIZED_JOYSTICKS
 extern char gSelectedJoystickName[128];
 #endif
 
@@ -91,6 +83,9 @@ enum eGameState
     GS_FRONTEND,
     GS_INIT_PLAYING_GAME,
     GS_PLAYING_GAME,
+#ifndef MASTER
+    GS_ANIMVIEWER,
+#endif
 };
 extern RwUInt32 gGameState;
 
@@ -136,12 +131,7 @@ void GetLocalTime_CP(SYSTEMTIME* out);
 
 typedef void* HANDLE;
 #define INVALID_HANDLE_VALUE NULL
-#define FindClose(h) \
-    do { \
-        if (h != nil) \
-            closedir((DIR*)h); \
-    } while(0)
-
+#define FindClose(h) closedir((DIR*)h)
 #define LOCALE_USER_DEFAULT 0
 #define DATE_SHORTDATE 0
 

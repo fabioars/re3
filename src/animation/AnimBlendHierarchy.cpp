@@ -2,7 +2,6 @@
 
 #include "AnimBlendSequence.h"
 #include "AnimBlendHierarchy.h"
-#include "AnimManager.h"
 
 CAnimBlendHierarchy::CAnimBlendHierarchy(void)
 {
@@ -16,10 +15,9 @@ CAnimBlendHierarchy::CAnimBlendHierarchy(void)
 void
 CAnimBlendHierarchy::Shutdown(void)
 {
-	CAnimManager::RemoveFromUncompressedCache(this);
 	RemoveAnimSequences();
-	totalLength = 0.0f;
 	compressed = 0;
+	linkPtr = nil;
 }
 
 void
@@ -32,43 +30,13 @@ void
 CAnimBlendHierarchy::CalcTotalTime(void)
 {
 	int i, j;
-
 	totalLength = 0.0f;
 
 	for(i = 0; i < numSequences; i++){
-#ifdef FIX_BUGS
-		if(sequences[i].numFrames == 0)
-			continue;
-#endif
-
-		totalLength = Max(totalLength, sequences[i].GetKeyFrame(sequences[i].numFrames-1)->deltaTime);
-		for(j = sequences[i].numFrames-1; j >= 1; j--){
-			KeyFrame *kf1 = sequences[i].GetKeyFrame(j);
-			KeyFrame *kf2 = sequences[i].GetKeyFrame(j-1);
-			kf1->deltaTime -= kf2->deltaTime;
-		}
-	}
-}
-
-void
-CAnimBlendHierarchy::CalcTotalTimeCompressed(void)
-{
-	int i, j;
-
-	totalLength = 0.0f;
-
-	for(i = 0; i < numSequences; i++){
-#ifdef FIX_BUGS
-		if(sequences[i].numFrames == 0)
-			continue;
-#endif
-
-		totalLength = Max(totalLength, sequences[i].GetKeyFrameCompressed(sequences[i].numFrames-1)->GetDeltaTime());
-		for(j = sequences[i].numFrames-1; j >= 1; j--){
-			KeyFrameCompressed *kf1 = sequences[i].GetKeyFrameCompressed(j);
-			KeyFrameCompressed *kf2 = sequences[i].GetKeyFrameCompressed(j-1);
-			kf1->deltaTime -= kf2->deltaTime;
-		}
+		float seqTime = 0.0f;
+		for(j = 0; j < sequences[i].numFrames; j++)
+			seqTime += sequences[i].GetKeyFrame(j)->deltaTime;
+		totalLength = Max(totalLength, seqTime);
 	}
 }
 
@@ -84,8 +52,8 @@ CAnimBlendHierarchy::RemoveQuaternionFlips(void)
 void
 CAnimBlendHierarchy::RemoveAnimSequences(void)
 {
-	delete[] sequences;
-	sequences = nil;
+	if(sequences)
+		delete[] sequences;
 	numSequences = 0;
 }
 
@@ -98,11 +66,9 @@ CAnimBlendHierarchy::Uncompress(void)
 	for(i = 0; i < numSequences; i++)
 		sequences[i].Uncompress();
 #endif
-	compressed = 0;
-	if(totalLength == 0.0f){
-		RemoveQuaternionFlips();
+	if(totalLength == 0.0f)
 		CalcTotalTime();
-	}
+	compressed = 0;
 }
 
 void
@@ -116,14 +82,3 @@ CAnimBlendHierarchy::RemoveUncompressedData(void)
 #endif
 	compressed = 1;
 }
-
-#ifdef USE_CUSTOM_ALLOCATOR
-void
-CAnimBlendHierarchy::MoveMemory(bool onlyone)
-{
-	int i;
-	for(i = 0; i < numSequences; i++)
-		if(sequences[i].MoveMemory() && onlyone)
-			return;
-}
-#endif

@@ -1,6 +1,9 @@
+#if defined RW_D3D9 || defined RWLIBS
 #define WITHD3D
+#endif
 #include "common.h"
 
+#include "RwHelper.h"
 #include "Timecycle.h"
 #include "skeleton.h"
 #include "Debug.h"
@@ -9,7 +12,6 @@
 #endif
 #ifndef FINAL
 RtCharset *debugCharset;
-bool bDebugRenderGroups;
 #endif
 
 #ifdef PS2_ALPHA_TEST
@@ -74,7 +76,7 @@ DefinedState(void)
 	RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
 	RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
-	//RwRenderStateSet(rwRENDERSTATEALPHAPRIMITIVEBUFFER, (void*)FALSE);
+	RwRenderStateSet(rwRENDERSTATEALPHAPRIMITIVEBUFFER, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATEBORDERCOLOR, (void*)RWRGBALONG(0, 0, 0, 255));
 	RwRenderStateSet(rwRENDERSTATEFOGENABLE, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATEFOGCOLOR,
@@ -84,13 +86,22 @@ DefinedState(void)
 
 #ifdef LIBRW
 	rw::SetRenderState(rw::ALPHATESTFUNC, rw::ALPHAGREATEREQUAL);
-	rw::SetRenderState(rw::ALPHATESTREF, 3);
 
 	rw::SetRenderState(rw::GSALPHATEST, gPS2alphaTest);
 #else
 	// D3D stuff
 	RwD3D8SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-	RwD3D8SetRenderState(D3DRS_ALPHAREF, 2);
+#endif
+	SetAlphaRef(2);
+}
+
+void
+SetAlphaRef(int ref)
+{
+#ifdef LIBRW
+	rw::SetRenderState(rw::ALPHATESTREF, ref+1);
+#else
+	RwD3D8SetRenderState(D3DRS_ALPHAREF, ref);
 #endif
 }
 
@@ -102,36 +113,6 @@ SetCullMode(uint32 mode)
 	else
 		RwRenderStateSet(rwRENDERSTATECULLMODE, (void*)rwCULLMODECULLNONE);
 }
-
-#ifndef FINAL
-void
-PushRendergroup(const char *name)
-{
-	if(!bDebugRenderGroups)
-		return;
-#if defined(RW_OPENGL)
-	if(GLAD_GL_KHR_debug)
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
-#elif defined(RW_D3D9)
-	static WCHAR tmp[256];
-	MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, tmp, sizeof(tmp));
-	D3DPERF_BeginEvent(0xFFFFFFFF, tmp);
-#endif
-}
-
-void
-PopRendergroup(void)
-{
-	if(!bDebugRenderGroups)
-		return;
-#if defined(RW_OPENGL)
-	if(GLAD_GL_KHR_debug)
-		glPopDebugGroup();
-#elif defined(RW_D3D9)
-	D3DPERF_EndEvent();
-#endif
-}
-#endif
 
 RwFrame*
 GetFirstFrameCallback(RwFrame *child, void *data)
@@ -201,11 +182,24 @@ GetFirstTexture(RwTexDictionary *txd)
 	return tex;
 }
 
-bool
+#ifdef PED_SKIN
+static RpAtomic*
+isSkinnedCb(RpAtomic *atomic, void *data)
+{
+	RpAtomic **pAtomic = (RpAtomic**)data;
+	if(*pAtomic)
+		return nil;	// already found one
+	if(RpSkinGeometryGetSkin(RpAtomicGetGeometry(atomic)))
+		*pAtomic = atomic;	// we could just return nil here directly...
+	return atomic;
+}
+
+RpAtomic*
 IsClumpSkinned(RpClump *clump)
 {
-	RpAtomic *atomic = GetFirstAtomic(clump);
-	return atomic ? RpSkinGeometryGetSkin(RpAtomicGetGeometry(atomic)) : nil;
+	RpAtomic *atomic = nil;
+	RpClumpForAllAtomics(clump, isSkinnedCb, &atomic);
+	return atomic;
 }
 
 static RpAtomic*
@@ -243,6 +237,17 @@ GetAnimHierarchyFromClump(RpClump *clump)
 	return hier;
 }
 
+RwFrame*
+GetHierarchyFromChildNodesCB(RwFrame *frame, void *data)
+{
+	RpHAnimHierarchy **pHier = (RpHAnimHierarchy**)data;
+	RpHAnimHierarchy *hier = RpHAnimFrameGetHierarchy(frame);
+	if(hier == nil)
+		RwFrameForAllChildren(frame, GetHierarchyFromChildNodesCB, &hier);
+	*pHier = hier;
+	return nil;
+}
+
 void
 SkinGetBonePositionsToTable(RpClump *clump, RwV3d *boneTable)
 {
@@ -258,7 +263,8 @@ SkinGetBonePositionsToTable(RpClump *clump, RwV3d *boneTable)
 	if(boneTable == nil)
 		return;
 
-	atomic = GetFirstAtomic(clump);		// mobile, also VC
+//	atomic = GetFirstAtomic(clump);		// mobile, also VC
+	atomic = IsClumpSkinned(clump);		// xbox, seems safer
 	assert(atomic);
 	skin = RpSkinGeometryGetSkin(RpAtomicGetGeometry(atomic));
 	assert(skin);
@@ -284,8 +290,7 @@ SkinGetBonePositionsToTable(RpClump *clump, RwV3d *boneTable)
 			parent = stack[sp--];
 		else
 			parent = i;
-
-		//assert(parent >= 0 && parent < numBones);
+		assert(parent >= 0 && parent < numBones);
 	}
 }
 
@@ -293,7 +298,7 @@ RpHAnimAnimation*
 HAnimAnimationCreateForHierarchy(RpHAnimHierarchy *hier)
 {
 	int i;
-#if defined FIX_BUGS || defined LIBRW
+#ifdef FIX_BUGS
 	int numNodes = hier->numNodes*2;	// you're supposed to have at least two KFs per node
 #else
 	int numNodes = hier->numNodes;
@@ -307,7 +312,7 @@ HAnimAnimationCreateForHierarchy(RpHAnimHierarchy *hier)
 		frame->q.real = 1.0f;
 		frame->q.imag.x = frame->q.imag.y = frame->q.imag.z = 0.0f;
 		frame->t.x = frame->t.y = frame->t.z = 0.0f;
-#if defined FIX_BUGS || defined LIBRW
+#ifdef FIX_BUGS
 		// times are subtracted and divided giving NaNs
 		// so they can't both be 0
 		frame->time = i/hier->numNodes;
@@ -317,6 +322,26 @@ HAnimAnimationCreateForHierarchy(RpHAnimHierarchy *hier)
 		frame->prevFrame = nil;
 	}
 	return anim;
+}
+
+RpAtomic*
+AtomicRemoveAnimFromSkinCB(RpAtomic *atomic, void *data)
+{
+	if(RpSkinGeometryGetSkin(RpAtomicGetGeometry(atomic))){
+		RpHAnimHierarchy *hier = RpSkinAtomicGetHAnimHierarchy(atomic);
+#ifdef LIBRW
+		if(hier && hier->interpolator->currentAnim){
+			RpHAnimAnimationDestroy(hier->interpolator->currentAnim);
+			hier->interpolator->currentAnim = nil;
+		}
+#else
+		if(hier && hier->pCurrentAnim){
+			RpHAnimAnimationDestroy(hier->pCurrentAnim);
+			hier->pCurrentAnim = nil;
+		}
+#endif
+	}
+	return atomic;
 }
 
 void
@@ -345,125 +370,7 @@ RenderSkeleton(RpHAnimHierarchy *hier)
 			par = stack[--sp];
 	}
 }
-
-
-RwBool Im2DRenderQuad(RwReal x1, RwReal y1, RwReal x2, RwReal y2, RwReal z, RwReal recipCamZ, RwReal uvOffset)
-{
-    RwIm2DVertex        vx[4];
-
-    /*
-     *  Render an opaque white 2D quad at the given coordinates and
-     *  spanning a whole texture.
-     */
-
-    RwIm2DVertexSetScreenX(&vx[0], x1);
-    RwIm2DVertexSetScreenY(&vx[0], y1);
-    RwIm2DVertexSetScreenZ(&vx[0], z);
-    RwIm2DVertexSetIntRGBA(&vx[0], 255, 255, 255, 255);
-    RwIm2DVertexSetRecipCameraZ(&vx[0], recipCamZ);
-    RwIm2DVertexSetU(&vx[0], uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[0], uvOffset, recipCamZ);
-
-    RwIm2DVertexSetScreenX(&vx[1], x1);
-    RwIm2DVertexSetScreenY(&vx[1], y2);
-    RwIm2DVertexSetScreenZ(&vx[1], z);
-    RwIm2DVertexSetIntRGBA(&vx[1], 255, 255, 255, 255);
-    RwIm2DVertexSetRecipCameraZ(&vx[1], recipCamZ);
-    RwIm2DVertexSetU(&vx[1], uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[1], 1.0f + uvOffset, recipCamZ);
-
-    RwIm2DVertexSetScreenX(&vx[2], x2);
-    RwIm2DVertexSetScreenY(&vx[2], y1);
-    RwIm2DVertexSetScreenZ(&vx[2], z);
-    RwIm2DVertexSetIntRGBA(&vx[2], 255, 255, 255, 255);
-    RwIm2DVertexSetRecipCameraZ(&vx[2], recipCamZ);
-    RwIm2DVertexSetU(&vx[2], 1.0f + uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[2], uvOffset, recipCamZ);
-
-    RwIm2DVertexSetScreenX(&vx[3], x2);
-    RwIm2DVertexSetScreenY(&vx[3], y2);
-    RwIm2DVertexSetScreenZ(&vx[3], z);
-    RwIm2DVertexSetIntRGBA(&vx[3], 255, 255, 255, 255);
-    RwIm2DVertexSetRecipCameraZ(&vx[3], recipCamZ);
-    RwIm2DVertexSetU(&vx[3], 1.0f + uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[3], 1.0f + uvOffset, recipCamZ);
-
-    RwIm2DRenderPrimitive(rwPRIMTYPETRISTRIP, vx, 4);
-
-    return TRUE;
-}
-
-bool b_cbsUseLTM = true;
-
-RpAtomic *cbsCalcMeanBSphereRadiusCB(RpAtomic *atomic, void *data)
-{
-	RwV3d atomicPos;
-
-	if ( b_cbsUseLTM )
-		RwV3dTransformPoints(&atomicPos, &RpAtomicGetBoundingSphere(atomic)->center, 1, RwFrameGetLTM(RpClumpGetFrame(atomic->clump)));
-	else
-		RwV3dTransformPoints(&atomicPos, &RpAtomicGetBoundingSphere(atomic)->center, 1, RwFrameGetMatrix(RpClumpGetFrame(atomic->clump)));
-
-	RwV3d temp;
-	RwV3dSub(&temp, &atomicPos, &((RwSphere *)data)->center);	
-	RwReal radius = RwV3dLength(&temp) + RpAtomicGetBoundingSphere(atomic)->radius;
-	
-	if ( ((RwSphere *)data)->radius < radius )
-		((RwSphere *)data)->radius = radius;
-
-	return atomic;
-}
-
-RpAtomic *cbsCalcMeanBSphereCenterCB(RpAtomic *atomic, void *data)
-{
-	RwV3d atomicPos;
-
-	if ( b_cbsUseLTM )
-		RwV3dTransformPoints(&atomicPos, &RpAtomicGetBoundingSphere(atomic)->center, 1, RwFrameGetLTM(RpClumpGetFrame(atomic->clump)));
-	else
-		RwV3dTransformPoints(&atomicPos, &RpAtomicGetBoundingSphere(atomic)->center, 1, RwFrameGetMatrix(RpClumpGetFrame(atomic->clump)));
-	
-	RwV3dAdd(&((RwSphere *)data)->center, &((RwSphere *)data)->center, &atomicPos);
-	
-	return atomic;
-}
-
-RpClump *RpClumpGetBoundingSphere(RpClump *clump, RwSphere *sphere, bool useLTM)
-{
-	RwMatrix matrix;
-	RwSphere result = { 0.0f, 0.0f, 0.0f, 0.0f };
-	
-	b_cbsUseLTM = useLTM;
- 
-	if ( clump == nil || sphere == nil )
-		return nil;
-  
-	sphere->radius = 0.0f;
-	sphere->center.x = 0.0f;
-	sphere->center.y = 0.0f;
-	sphere->center.z = 0.0f;
-    
-	RwInt32 numAtomics = RpClumpGetNumAtomics(clump);
-	if ( numAtomics < 1.0f )
-		return nil;
-	
-	RpClumpForAllAtomics(clump, cbsCalcMeanBSphereCenterCB, &result);
-	
-	RwV3dScale(&result.center, &result.center, 1.0f/numAtomics);
-	
-	RpClumpForAllAtomics(clump, cbsCalcMeanBSphereRadiusCB, &result);
-	
-	if ( b_cbsUseLTM )
-		RwMatrixInvert(&matrix, RwFrameGetLTM(RpClumpGetFrame(clump)));
-	else
-		RwMatrixInvert(&matrix, RwFrameGetMatrix(RpClumpGetFrame(clump)));
-	
-	RwV3dTransformPoints(&result.center, &result.center, 1, &matrix);
-
-	*sphere = result;
-	
-	return clump;
-}
+#endif
 
 void
 CameraSize(RwCamera * camera, RwRect * rect,
@@ -513,7 +420,7 @@ CameraSize(RwCamera * camera, RwRect * rect,
 			RwRaster           *zRaster;
 
 			// BUG: game just changes camera raster's sizes, but this is a hack
-#if defined FIX_BUGS || defined LIBRW
+#ifdef FIX_BUGS
 			/*
 			 * Destroy rasters...
 			 */
@@ -576,7 +483,7 @@ CameraSize(RwCamera * camera, RwRect * rect,
 #else
 			raster = RwCameraGetRaster(camera);
 			zRaster = RwCameraGetZRaster(camera);
-			
+
 			raster->width = zRaster->width = rect->w;
 			raster->height = zRaster->height = rect->h;
 #endif
@@ -698,6 +605,11 @@ CameraCreate(RwInt32 width, RwInt32 height, RwBool zBuffer)
 	return (nil);
 }
 
+#ifdef USE_TEXTURE_POOL
+WRAPPER void _TexturePoolsInitialise() { EAXJMP(0x598B10); }
+WRAPPER void _TexturePoolsShutdown() { EAXJMP(0x598B30); }
+#endif
+
 #ifdef LIBRW
 #include <rpmatfx.h>
 #include "VehicleModelInfo.h"
@@ -711,6 +623,16 @@ findPlatform(rw::Atomic *a)
 	return 0;
 }
 
+// in CVehicleModelInfo in VC
+static RpMaterial*
+GetMatFXEffectMaterialCB(RpMaterial *material, void *data)
+{
+	if(RpMatFXMaterialGetEffects(material) == rpMATFXEFFECTNULL)
+		return material;
+	*(int*)data = RpMatFXMaterialGetEffects(material);
+	return nil;
+}
+
 // Game doesn't read atomic extensions so we never get any other than the default pipe,
 // but we need it for uninstancing
 void
@@ -720,7 +642,7 @@ attachPipe(rw::Atomic *atomic)
 		atomic->pipeline = rw::skinGlobals.pipelines[rw::platform];
 	else{
 		int fx = rpMATFXEFFECTNULL;
-		RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), CVehicleModelInfo::GetMatFXEffectMaterialCB, &fx);
+		RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), GetMatFXEffectMaterialCB, &fx);
 		if(fx != rpMATFXEFFECTNULL)
 			RpMatFXAtomicEnableEffects(atomic);
 	}

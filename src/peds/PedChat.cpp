@@ -5,63 +5,46 @@
 #include "Ped.h"
 
 // Corresponds to ped sounds (from SOUND_PED_DEATH to SOUND_PED_TAXI_CALL)
-PedAudioData CommentWaitTime[56] = {
-  { 500, 800, 500, 2 },
-  { 500, 800, 500, 2 },
-  { 500, 800, 500, 2 },
-  { 500, 800, 500, 2 },
-  { 100, 2, 100, 2 },
-  { 500, 500, 2000, 1000 },
-  { 2000, 50, 2050, 1000 },
-  { 5000, 2000, 7000, 3000 },
-  { 5000, 2000, 7000, 3000 },
-  { 300, 200, 500, 200 },
-  { 3000, 1000, 4000, 1000 },
-  { 6000, 6000, 6000, 6000 },
-  { 4000, 1000, 5000, 1000 },
-  { 3000, 1000, 4000, 1000 },
-  { 1000, 1000, 2000, 2000 },
-  { 1000, 500, 2000, 1500 },
-  { 1700, 1000, 3000, 1000 },
-  { 800, 200, 1000, 500 },
-  { 800, 200, 1000, 500 },
-  { 800, 400, 2000, 1000 },
-  { 800, 400, 2000, 1000 },
-  { 2000, 2000, 4000, 4000 },
-  { 2000, 2000, 4000, 1000 },
-  { 4000, 1000, 5000, 1000 },
-  { 800, 400, 1200, 500 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 5000, 1000, 6000, 2000 },
-  { 4000, 2000, 7000, 2000 },
-  { 1000, 300, 2000, 1000 },
-  { 1500, 1000, 2500, 1000 },
-  { 200, 200, 200, 200 },
-  { 2000, 1000, 4000, 1000 },
-  { 2000, 1000, 4000, 1000 },
-  { 1000, 500, 3000, 1000 },
-  { 1000, 500, 1000, 1000 },
-  { 3000, 2000, 5000, 1000 },
-  { 3000, 2000, 5000, 1000 },
-  { 3000, 2000, 3000, 2000 },
-  { 2000, 1000, 3000, 1000 },
-  { 2500, 1000, 5000, 5000 },
-  { 2000, 1000, 3000, 2000 },
-  { 4000, 1000, 5000, 1000 },
-  { 1000, 500, 2000, 4000 },
-  { 1000, 500, 2000, 5000 },
-  { 2000, 500, 2500, 500 },
-  { 1000, 500, 3000, 2000 },
-  { 1600, 1000, 2000, 2000 },
-  { 2000, 1000, 4000, 2000 },
-  { 1500, 1000, 2500, 1000 },
-  { 1000, 1000, 5000, 5000 },
-  { 0, 0, 0, 0 }
+PedAudioData CommentWaitTime[39] = {
+	{500, 800, 500, 2},
+	{500, 800, 500, 2},
+	{500, 800, 500, 2},
+	{500, 800, 500, 2},
+	{100, 2, 100, 2},
+	{700, 500, 1000, 500},
+	{700, 500, 1000, 500},
+	{5000, 2000, 15000, 3000},
+	{5000, 2000, 15000, 3000},
+	{5000, 2000, 15000, 3000},
+	{6000, 6000, 6000, 6000},
+	{1000, 1000, 2000, 2000},
+	{1000, 500, 2000, 1500},
+	{1000, 500, 2000, 1500},
+	{800, 200, 1000, 500},
+	{800, 200, 1000, 500},
+	{800, 400, 2000, 1000},
+	{800, 400, 2000, 1000},
+	{400, 300, 2000, 1000},
+	{2000, 1000, 2500, 1500},
+	{200, 200, 200, 200},
+	{6000, 3000, 5000, 6000},
+	{6000, 3000, 9000, 5000},
+	{6000, 3000, 9000, 5000},
+	{6000, 3000, 9000, 5000},
+	{400, 300, 4000, 1000},
+	{400, 300, 4000, 1000},
+	{400, 300, 4000, 1000},
+	{1000, 500, 3000, 1000},
+	{1000, 500, 1000, 1000},
+	{3000, 2000, 3000, 2000},
+	{1000, 500, 3000, 6000},
+	{1000, 500, 2000, 4000},
+	{1000, 500, 2000, 5000},
+	{1000, 500, 3000, 2000},
+	{1600, 1000, 2000, 2000},
+	{3000, 2000, 5000, 3000},
+	{1000, 1000, 1000, 1000},
+	{1000, 1000, 5000, 5000},
 };
 
 bool
@@ -76,7 +59,9 @@ CPed::ServiceTalking(void)
 	if (bBodyPartJustCameOff && m_bodyPartBleeding == PED_HEAD)
 		return;
 
-	if (!CGame::germanGame && m_pFire)
+	if (!CGeneral::faststricmp(CModelInfo::GetModelInfo(GetModelIndex())->GetName(), "bomber"))
+		m_queuedSound = SOUND_PED_BOMBER;
+	else if (m_nPedState == PED_ON_FIRE)
 		m_queuedSound = SOUND_PED_BURNING;
 
 	if (m_queuedSound != SOUND_NO_SOUND) {
@@ -90,10 +75,6 @@ CPed::ServiceTalking(void)
 				CommentWaitTime[m_queuedSound - SOUND_PED_DEATH].m_nFixedDelayTime
 				+ CTimer::GetTimeInMilliseconds()
 				+ CGeneral::GetRandomNumberInRange(0, CommentWaitTime[m_queuedSound - SOUND_PED_DEATH].m_nOverrideFixedDelayTime);
-
-			if (m_queuedSound == SOUND_PED_PLAYER_BEFORESEX && IsPlayer())
-				m_soundStart += 2000;
-
 			m_lastQueuedSound = m_queuedSound;
 			m_queuedSound = SOUND_NO_SOUND;
 		}
@@ -103,50 +84,68 @@ CPed::ServiceTalking(void)
 void
 CPed::Say(uint16 audio)
 {
-	if (3.0f + TheCamera.GetPosition().z < GetPosition().z)
-		return;
+	if (IsPlayer()) {
 
-	if (TheCamera.m_CameraAverageSpeed > 1.65f) {
-		if (audio != SOUND_PED_DAMAGE && audio != SOUND_PED_HIT && audio != SOUND_PED_LAND)
-			return;
-
-	} else if (TheCamera.m_CameraAverageSpeed > 1.25f) {
-		if (audio != SOUND_PED_DEATH &&
-			audio != SOUND_PED_DAMAGE && audio != SOUND_PED_HIT && audio != SOUND_PED_LAND &&
-			audio != SOUND_PED_TAXI_WAIT && audio != SOUND_PED_EVADE)
-			return;
-
-	} else if (TheCamera.m_CameraAverageSpeed > 0.9f) {
+		// Ofc this part isn't in VC.
 		switch (audio) {
 			case SOUND_PED_DEATH:
+				audio = SOUND_PED_DAMAGE;
+				break;
 			case SOUND_PED_DAMAGE:
 			case SOUND_PED_HIT:
 			case SOUND_PED_LAND:
-			case SOUND_PED_BURNING:
-			case SOUND_PED_FLEE_SPRINT:
-			case SOUND_PED_TAXI_WAIT:
-			case SOUND_PED_EVADE:
-			case SOUND_PED_CRASH_VEHICLE:
-			case SOUND_PED_CRASH_CAR:
-			case SOUND_PED_ANNOYED_DRIVER:
+				break;
+			case SOUND_PED_BULLET_HIT:
+			case SOUND_PED_CAR_JACKED:
+			case SOUND_PED_DEFEND:
+				audio = SOUND_PED_HIT;
 				break;
 			default:
 				return;
+		}
+	} else {
+		if (TheCamera.GetPosition().z + 3.0f < GetPosition().z)
+			return;
+
+		if (TheCamera.m_CameraAverageSpeed > 1.65f) {
+#ifdef VC_PED_PORTS
+			if (audio != SOUND_PED_DAMAGE && audio != SOUND_PED_HIT && audio != SOUND_PED_LAND)
+#endif
+				return;
+
+		} else if (TheCamera.m_CameraAverageSpeed > 1.25f) {
+			if (audio != SOUND_PED_DEATH &&
+#ifdef VC_PED_PORTS
+				audio != SOUND_PED_DAMAGE && audio != SOUND_PED_HIT && audio != SOUND_PED_LAND &&
+#endif
+				audio != SOUND_PED_TAXI_WAIT && audio != SOUND_PED_EVADE)
+				return;
+
+		} else if (TheCamera.m_CameraAverageSpeed > 0.9f) {
+			switch (audio) {
+				case SOUND_PED_DEATH:
+#ifdef VC_PED_PORTS
+				case SOUND_PED_DAMAGE:
+				case SOUND_PED_HIT:
+				case SOUND_PED_LAND:
+#endif
+				case SOUND_PED_BURNING:
+				case SOUND_PED_FLEE_SPRINT:
+				case SOUND_PED_TAXI_WAIT:
+				case SOUND_PED_EVADE:
+				case SOUND_PED_ANNOYED_DRIVER:
+					break;
+				default:
+					return;
+			}
 		}
 	}
 
 	if (audio < m_queuedSound) {
 		if (audio != m_lastQueuedSound || audio == SOUND_PED_DEATH
-
-		// See VC Ped Speech patch
-#ifdef FIX_BUGS
 			|| CommentWaitTime[audio - SOUND_PED_DEATH].m_nOverrideMaxRandomDelayTime
-				+ (uint32)CGeneral::GetRandomNumberInRange(0, CommentWaitTime[audio - SOUND_PED_DEATH].m_nMaxRandomDelayTime)
-#else
-			|| CommentWaitTime[m_queuedSound - SOUND_PED_DEATH].m_nOverrideMaxRandomDelayTime
-			+ (uint32)CGeneral::GetRandomNumberInRange(0, CommentWaitTime[m_queuedSound - SOUND_PED_DEATH].m_nMaxRandomDelayTime)
-#endif
-				+ m_lastSoundStart <= CTimer::GetTimeInMilliseconds()) {
+				+ m_lastSoundStart
+				+ (uint32) CGeneral::GetRandomNumberInRange(0, CommentWaitTime[audio - SOUND_PED_DEATH].m_nMaxRandomDelayTime) <= CTimer::GetTimeInMilliseconds()) {
 			m_queuedSound = audio;
 		}
 	}

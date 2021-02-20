@@ -2,7 +2,6 @@
 #include "main.h"
 
 #include "General.h"
-#include "CutsceneMgr.h"
 #include "ModelIndices.h"
 #include "FileMgr.h"
 #include "Streaming.h"
@@ -13,10 +12,8 @@
 #include "Coronas.h"
 #include "Particle.h"
 #include "Explosion.h"
-#include "Fluff.h"
 #include "World.h"
 #include "HandlingMgr.h"
-#include "Heli.h"
 #include "Plane.h"
 #include "MemoryHeap.h"
 
@@ -43,10 +40,12 @@ CPlaneInterpolationLine aPlaneLineBits[6];
 float PlanePathPosition[3];
 float OldPlanePathPosition[3];
 float PlanePathSpeed[3];
-float PlanePath2Position[5];
-float PlanePath3Position[4];
-float PlanePath2Speed[5];
-float PlanePath3Speed[4];
+float PlanePath2Position[3];
+float PlanePath3Position;
+float PlanePath4Position;
+float PlanePath2Speed[3];
+float PlanePath3Speed;
+float PlanePath4Speed;
 
 
 enum
@@ -63,6 +62,7 @@ CPlane *pDrugRunCesna;
 int32 DropOffCesnaMissionStatus;
 int32 DropOffCesnaMissionStartTime;
 CPlane *pDropOffCesna;
+
 
 CPlane::CPlane(int32 id, uint8 CreatedBy)
  : CVehicle(CreatedBy)
@@ -81,15 +81,13 @@ CPlane::CPlane(int32 id, uint8 CreatedBy)
 	m_bHasBeenHit = false;
 	m_bIsDrugRunCesna = false;
 	m_bIsDropOffCesna = false;
-	m_bTempPlane = false;
 
 	SetStatus(STATUS_PLANE);
 	bIsBIGBuilding = true;
 	m_level = LEVEL_GENERIC;
 
+#ifdef FIX_BUGS
 	m_isFarAway = false;
-#ifdef CPLANE_ROTORS
-	m_fRotorRotation = 0.0f;
 #endif
 }
 
@@ -102,21 +100,6 @@ void
 CPlane::SetModelIndex(uint32 id)
 {
 	CVehicle::SetModelIndex(id);
-#ifdef CPLANE_ROTORS
-	int i;
-	for(i = 0; i < NUM_PLANE_NODES; i++)
-		m_aPlaneNodes[i] = nil;
-	if(GetModelIndex() == MI_CHOPPER){
-		// This is surprisingly annoying...
-		RwFrame *heliNodes[NUM_HELI_NODES];
-		for(i = 0; i < NUM_HELI_NODES; i++)
-			heliNodes[i] = nil;
-		CClumpModelInfo::FillFrameArray(GetClump(), heliNodes);
-		m_aPlaneNodes[PLANE_TOPROTOR] = heliNodes[HELI_TOPROTOR];
-		m_aPlaneNodes[PLANE_BACKROTOR] = heliNodes[HELI_BACKROTOR];
-	}else
-		CClumpModelInfo::FillFrameArray(GetClump(), m_aPlaneNodes);
-#endif
 }
 
 void
@@ -140,15 +123,6 @@ CPlane::ProcessControl(void)
 {
 	int i;
 	CVector pos;
-
-	if(CReplay::IsPlayingBack())
-		return;
-
-	if(GetModelIndex() == MI_AIRTRAIN){
-		if(GetPosition().z > 100.0f)
-			CPlaneTrails::RegisterPoint(GetPosition(), m_nPlaneId);
-	}else if(GetModelIndex() == MI_DEADDODO)
-		CPlaneBanners::RegisterPoint(GetPosition(), m_nPlaneId);
 
 	// Explosion
 	if(m_bHasBeenHit){
@@ -410,6 +384,7 @@ CPlane::ProcessControl(void)
 			GetMatrix().GetRight() = right;
 			GetMatrix().GetUp() = up;
 			GetMatrix().GetForward() = fwd;
+
 			// Set speed
 			m_vecMoveSpeed = fwd*PlanePathSpeed[m_nPlaneId]/60.0f;
 			m_fSpeed = PlanePathSpeed[m_nPlaneId]/60.0f;
@@ -423,12 +398,26 @@ CPlane::ProcessControl(void)
 			float planePathSpeed;
 			int numPathNodes;
 
-			if(GetModelIndex() == MI_CHOPPER){
-				planePathPosition = PlanePath3Position[m_nPlaneId];
+			if(m_bIsDrugRunCesna){
+				planePathPosition = PlanePath3Position;
 				totalLengthOfFlightPath = TotalLengthOfFlightPath3;
 				pathNodes = pPath3Nodes;
-				planePathSpeed = PlanePath3Speed[m_nPlaneId];
+				planePathSpeed = PlanePath3Speed;
 				numPathNodes = NumPath3Nodes;
+				if(CesnaMissionStatus == CESNA_STATUS_LANDED){
+					pDrugRunCesna = nil;
+					FlagToDestroyWhenNextProcessed();
+				}
+			}else if(m_bIsDropOffCesna){
+				planePathPosition = PlanePath4Position;
+				totalLengthOfFlightPath = TotalLengthOfFlightPath4;
+				pathNodes = pPath4Nodes;
+				planePathSpeed = PlanePath4Speed;
+				numPathNodes = NumPath4Nodes;
+				if(DropOffCesnaMissionStatus == CESNA_STATUS_LANDED){
+					pDropOffCesna = nil;
+					FlagToDestroyWhenNextProcessed();
+				}
 			}else{
 				planePathPosition = PlanePath2Position[m_nPlaneId];
 				totalLengthOfFlightPath = TotalLengthOfFlightPath2;
@@ -649,36 +638,12 @@ CPlane::PreRender(void)
 			CCoronas::TYPE_NORMAL, CCoronas::FLARE_NONE, CCoronas::REFLECTION_ON,
 			CCoronas::LOSCHECK_OFF, CCoronas::STREAK_ON, 0.0f);
 	}
-
-#ifdef CPLANE_ROTORS
-	CMatrix mat;
-	CVector pos;
-	m_fRotorRotation += 3.14f/6.5f;
-	if(m_fRotorRotation > 6.28f)
-		m_fRotorRotation -= 6.28f;
-
-	if(m_aPlaneNodes[PLANE_TOPROTOR]){
-		mat.Attach(RwFrameGetMatrix(m_aPlaneNodes[PLANE_TOPROTOR]));
-		pos = mat.GetPosition();
-		mat.SetRotateZ(m_fRotorRotation);
-		mat.Translate(pos);
-		mat.UpdateRW();
-	}
-	if(m_aPlaneNodes[PLANE_BACKROTOR]){
-		mat.Attach(RwFrameGetMatrix(m_aPlaneNodes[PLANE_BACKROTOR]));
-		pos = mat.GetPosition();
-		mat.SetRotateX(m_fRotorRotation);
-		mat.Translate(pos);
-		mat.UpdateRW();
-	}
-#endif
 }
 
 void
 CPlane::Render(void)
 {
-	if(!CCutsceneMgr::IsRunning())
-		CEntity::Render();
+	CEntity::Render();
 }
 
 #define CRUISE_SPEED (50.0f)
@@ -696,9 +661,11 @@ CPlane::InitPlanes(void)
 		pPathNodes = LoadPath("data\\paths\\flight.dat", NumPathNodes, TotalLengthOfFlightPath, true);
 
 		// Figure out which nodes are on ground
+		CColPoint colpoint;
+		CEntity *entity;
 		for(i = 0; i < NumPathNodes; i++){
-			if(pPathNodes[i].p.z < 14.0f){
-				pPathNodes[i].p.z = 14.0f;
+			if(CWorld::ProcessVerticalLine(pPathNodes[i].p, 1000.0f, colpoint, entity, true, false, false, false, true, false, nil)){
+				pPathNodes[i].p.z = colpoint.point.z;
 				pPathNodes[i].bOnGround = true;
 			}else
 				pPathNodes[i].bOnGround = false;
@@ -725,7 +692,7 @@ CPlane::InitPlanes(void)
 		aPlaneLineBits[0].position = position;
 		aPlaneLineBits[0].speed = TAXI_SPEED;
 		aPlaneLineBits[0].acceleration = 0.0f;
-		float dist = (TakeOffPoint-500.0f) - position;
+		float dist = (TakeOffPoint-600.0f) - position;
 		time += dist/TAXI_SPEED;
 		position += dist;
 
@@ -734,9 +701,9 @@ CPlane::InitPlanes(void)
 		aPlaneLineBits[1].time = time;
 		aPlaneLineBits[1].position = position;
 		aPlaneLineBits[1].speed = TAXI_SPEED;
-		aPlaneLineBits[1].acceleration = 618.75f/500.0f;
-		time += 500.0f/((CRUISE_SPEED+TAXI_SPEED)/2.0f);
-		position += 500.0f;
+		aPlaneLineBits[1].acceleration = 618.75f/600.0f;
+		time += 600.0f/((CRUISE_SPEED+TAXI_SPEED)/2.0f);
+		position += 600.0f;
 
 		// Fly at cruise speed
 		aPlaneLineBits[2].type = 1;
@@ -753,9 +720,9 @@ CPlane::InitPlanes(void)
 		aPlaneLineBits[3].time = time;
 		aPlaneLineBits[3].position = position;
 		aPlaneLineBits[3].speed = CRUISE_SPEED;
-		aPlaneLineBits[3].acceleration = -618.75f/500.0f;
-		time += 500.0f/((CRUISE_SPEED+TAXI_SPEED)/2.0f);
-		position += 500.0f;
+		aPlaneLineBits[3].acceleration = -618.75f/600.0f;
+		time += 600.0f/((CRUISE_SPEED+TAXI_SPEED)/2.0f);
+		position += 600.0f;
 
 		// Taxi
 		aPlaneLineBits[4].type = 1;
@@ -776,19 +743,38 @@ CPlane::InitPlanes(void)
 		TotalDurationOfFlightPath2 = TotalLengthOfFlightPath2/CRUISE_SPEED;
 	}
 
-	// Heli
+	// Mission Cesna
 	if(pPath3Nodes == nil){
 		pPath3Nodes = LoadPath("data\\paths\\flight3.dat", NumPath3Nodes, TotalLengthOfFlightPath3, false);
 		TotalDurationOfFlightPath3 = TotalLengthOfFlightPath3/CRUISE_SPEED;
+	}
+
+	// Mission Cesna
+	if(pPath4Nodes == nil){
+		pPath4Nodes = LoadPath("data\\paths\\flight4.dat", NumPath4Nodes, TotalLengthOfFlightPath4, false);
+		TotalDurationOfFlightPath4 = TotalLengthOfFlightPath4/CRUISE_SPEED;
 	}
 
 	CStreaming::LoadAllRequestedModels(false);
 	CStreaming::RequestModel(MI_AIRTRAIN, 0);
 	CStreaming::LoadAllRequestedModels(false);
 
-	// NB: 3 hardcoded also in CPlaneTrails
 	for(i = 0; i < 3; i++){
 		CPlane *plane = new CPlane(MI_AIRTRAIN, PERMANENT_VEHICLE);
+		plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+		plane->SetStatus(STATUS_ABANDONED);
+		plane->bIsLocked = true;
+		plane->m_nPlaneId = i;
+		plane->m_nCurPathNode = 0;
+		CWorld::Add(plane);
+	}
+
+
+	CStreaming::RequestModel(MI_DEADDODO, 0);
+	CStreaming::LoadAllRequestedModels(false);
+
+	for(i = 0; i < 3; i++){
+		CPlane *plane = new CPlane(MI_DEADDODO, PERMANENT_VEHICLE);
 		plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
 		plane->SetStatus(STATUS_ABANDONED);
 		plane->bIsLocked = true;
@@ -827,7 +813,8 @@ CPlane::LoadPath(char const *filename, int32 &numNodes, float &totalLength, bool
 	CPlaneNode *nodes = new CPlaneNode[numNodes];
 
 	for(i = 0; i < numNodes; i++){
-		for(lp = 0; work_buff[bp] != '\n' && work_buff[bp] != '\0'; bp++, lp++)
+		*gString = '\0';
+		for(lp = 0; work_buff[bp] != '\n'; bp++, lp++)
 			gString[lp] = work_buff[bp];
 		bp++;
 		// BUG: game doesn't terminate string
@@ -847,10 +834,6 @@ CPlane::LoadPath(char const *filename, int32 &numNodes, float &totalLength, bool
 
 	return nodes;
 }
-
-int32 LastTimeInPlane, LastTimeNotInPlane;
-bool bCesnasActivated;
-bool bHelisActivated;
 
 void
 CPlane::UpdatePlanes(void)
@@ -894,87 +877,25 @@ CPlane::UpdatePlanes(void)
 
 	t = TotalDurationOfFlightPath2/0x80000;
 	PlanePath2Position[0] = CRUISE_SPEED * (time & 0x7FFFF)*t;
-	PlanePath2Position[1] = CRUISE_SPEED * ((time + 0x80000/5) & 0x7FFFF)*t;
-	PlanePath2Position[2] = CRUISE_SPEED * ((time + 0x80000/5*2) & 0x7FFFF)*t;
-	PlanePath2Position[3] = CRUISE_SPEED * ((time + 0x80000/5*3) & 0x7FFFF)*t;
-	PlanePath2Position[4] = CRUISE_SPEED * ((time + 0x80000/5*4) & 0x7FFFF)*t;
+	PlanePath2Position[1] = CRUISE_SPEED * ((time + 0x80000/3) & 0x7FFFF)*t;
+	PlanePath2Position[2] = CRUISE_SPEED * ((time + 0x80000/3*2) & 0x7FFFF)*t;
 	PlanePath2Speed[0] = CRUISE_SPEED*t;
 	PlanePath2Speed[1] = CRUISE_SPEED*t;
 	PlanePath2Speed[2] = CRUISE_SPEED*t;
-	PlanePath2Speed[3] = CRUISE_SPEED*t;
-	PlanePath2Speed[4] = CRUISE_SPEED*t;
 
-	t = TotalDurationOfFlightPath3/0x80000;
-	PlanePath3Position[0] = CRUISE_SPEED * (time & 0x7FFFF)*t;
-	PlanePath3Position[1] = CRUISE_SPEED * ((time + 0x80000/4) & 0x7FFFF)*t;
-	PlanePath3Position[2] = CRUISE_SPEED * ((time + 0x80000/4*2) & 0x7FFFF)*t;
-	PlanePath3Position[3] = CRUISE_SPEED * ((time + 0x80000/4*3) & 0x7FFFF)*t;
-	PlanePath3Speed[0] = CRUISE_SPEED*t;
-	PlanePath3Speed[1] = CRUISE_SPEED*t;
-	PlanePath3Speed[2] = CRUISE_SPEED*t;
-	PlanePath3Speed[3] = CRUISE_SPEED*t;
-
-	if(FindPlayerVehicle() && (FindPlayerVehicle()->GetVehicleAppearance() == VEHICLE_APPEARANCE_HELI ||
-	                           FindPlayerVehicle()->GetVehicleAppearance() == VEHICLE_APPEARANCE_PLANE))
-		LastTimeInPlane = CTimer::GetTimeInMilliseconds();
-	else
-		LastTimeNotInPlane = CTimer::GetTimeInMilliseconds();
-
-	if(CTimer::GetTimeInMilliseconds() - LastTimeNotInPlane > 10000){
-		if(!bCesnasActivated){
-			if(CStreaming::HasModelLoaded(MI_DEADDODO)){
-				for(i = 0; i < 5; i++){
-					CPlane *plane = new CPlane(MI_DEADDODO, PERMANENT_VEHICLE);
-					plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
-					plane->SetStatus(STATUS_ABANDONED);
-					plane->bIsLocked = true;
-					plane->m_nPlaneId = i;
-					plane->m_nCurPathNode = 0;
-					plane->m_bTempPlane = true;
-					CWorld::Add(plane);
-				}
-				bCesnasActivated = true;
-			}else
-				CStreaming::RequestModel(MI_DEADDODO, 0);
-		}
-
-		if(!bHelisActivated){
-			if(CStreaming::HasModelLoaded(MI_CHOPPER)){
-				for(i = 0; i < 4; i++){
-					CPlane *plane = new CPlane(MI_CHOPPER, PERMANENT_VEHICLE);
-					plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
-					plane->SetStatus(STATUS_ABANDONED);
-					plane->bIsLocked = true;
-					plane->m_nPlaneId = i;
-					plane->m_nCurPathNode = 0;
-					plane->m_bTempPlane = true;
-					CWorld::Add(plane);
-				}
-				bHelisActivated = true;
-			}else
-				CStreaming::RequestModel(MI_CHOPPER, 0);
-		}
-	}else if(CTimer::GetTimeInMilliseconds() - LastTimeInPlane > 10000)
-		RemoveTemporaryPlanes();
-}
-
-void
-CPlane::RemoveTemporaryPlanes(void)
-{
-	int i;
-	if(!bHelisActivated && !bCesnasActivated)
-		return;
-
-	i = CPools::GetVehiclePool()->GetSize();
-	while(--i >= 0){
-		CPlane *plane = (CPlane*)CPools::GetVehiclePool()->GetSlot(i);
-		if(plane && plane->IsPlane() && plane->m_bTempPlane){
-			CWorld::Remove(plane);
-			delete plane;
-		}
+	if(CesnaMissionStatus == CESNA_STATUS_FLYING){
+		PlanePath3Speed = CRUISE_SPEED*TotalDurationOfFlightPath3/0x20000;
+		PlanePath3Position = PlanePath3Speed * ((time - CesnaMissionStartTime) & 0x1FFFF);
+		if(time - CesnaMissionStartTime >= 128072)
+			CesnaMissionStatus = CESNA_STATUS_LANDED;
 	}
-	bCesnasActivated = false;
-	bHelisActivated = false;
+
+	if(DropOffCesnaMissionStatus == CESNA_STATUS_FLYING){
+		PlanePath4Speed = CRUISE_SPEED*TotalDurationOfFlightPath4/0x80000;
+		PlanePath4Position = PlanePath4Speed * ((time - DropOffCesnaMissionStartTime) & 0x7FFFF);
+		if(time - DropOffCesnaMissionStartTime >= 521288)
+			DropOffCesnaMissionStatus = CESNA_STATUS_LANDED;
+	}
 }
 
 bool
@@ -1002,7 +923,6 @@ CPlane::TestRocketCollision(CVector *rocketPos)
 	return false;
 }
 
-// unused
 // BUG: not in CPlane in the game
 void
 CPlane::CreateIncomingCesna(void)
@@ -1026,7 +946,6 @@ CPlane::CreateIncomingCesna(void)
         printf("CPlane::CreateIncomingCesna(void)\n");
 }
 
-// unused
 void
 CPlane::CreateDropOffCesna(void)
 {
@@ -1049,21 +968,8 @@ CPlane::CreateDropOffCesna(void)
         printf("CPlane::CreateDropOffCesna(void)\n");
 }
 
-// all unused
 const CVector CPlane::FindDrugPlaneCoordinates(void) { return pDrugRunCesna->GetPosition(); }
 const CVector CPlane::FindDropOffCesnaCoordinates(void) { return pDropOffCesna->GetPosition(); }
 bool CPlane::HasCesnaLanded(void) { return CesnaMissionStatus == CESNA_STATUS_LANDED; }
 bool CPlane::HasCesnaBeenDestroyed(void) { return CesnaMissionStatus == CESNA_STATUS_DESTROYED; }
 bool CPlane::HasDropOffCesnaBeenShotDown(void) { return DropOffCesnaMissionStatus == CESNA_STATUS_DESTROYED; }
-
-void
-CPlane::Load(void)
-{
-	RemoveTemporaryPlanes();
-}
-
-void
-CPlane::Save(void)
-{
-	RemoveTemporaryPlanes();
-}

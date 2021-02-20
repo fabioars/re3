@@ -1,12 +1,9 @@
 #pragma once
 
-#include "Sprite2d.h"
-
 void AsciiToUnicode(const char *src, wchar *dst);
 void UnicodeStrcpy(wchar *dst, const wchar *src);
 void UnicodeStrcat(wchar *dst, wchar *append);
 int UnicodeStrlen(const wchar *str);
-void UnicodeMakeUpperCase(wchar *dst, const wchar *src);
 
 struct CFontDetails
 {
@@ -16,60 +13,33 @@ struct CFontDetails
 	float slant;
 	float slantRefX;
 	float slantRefY;
-	bool8 justify;
-	bool8 centre;
-	bool8 rightJustify;
-	bool8 background;
-	bool8 backgroundOnlyText;
-	bool8 proportional;
-	bool8 bIsShadow;
-	bool8 bFlash;
-	bool8 bBold;
+	bool justify;
+	bool centre;
+	bool rightJustify;
+	bool background;
+	bool backgroundOnlyText;
+	bool proportional;
 	float alphaFade;
 	CRGBA backgroundColor;
 	float wrapX;
 	float centreSize;
 	float rightJustifyWrap;
 	int16 style;
-	bool8 bFontHalfTexture;
-	uint32 bank;
+	int32 bank;
 	int16 dropShadowPosition;
 	CRGBA dropColor;
-	bool8 bFlashState;
-	int nFlashTimer;
-	bool8 anonymous_23;
-	uint32 anonymous_25;
-};
-
-struct CFontRenderState
-{
-	uint32 anonymous_0;
-	float fTextPosX;
-	float fTextPosY;
-	float scaleX;
-	float scaleY;
-	CRGBA color;
-	float fExtraSpace;
-	float slant;
-	float slantRefX;
-	float slantRefY;
-	bool8 bIsShadow;
-	bool8 bFontHalfTexture;
-	bool8 proportional;
-	bool8 anonymous_14;
-	int16 style;
 };
 
 class CSprite2d;
 
 enum {
 	FONT_BANK,
-	FONT_STANDARD,
+	FONT_PAGER,
 	FONT_HEADING,
 #ifdef MORE_LANGUAGES
 	FONT_JAPANESE,
 #endif
-	MAX_FONTS = FONT_HEADING
+	MAX_FONTS
 };
 
 enum {
@@ -97,10 +67,12 @@ enum
 enum
 {
 	BUTTON_NONE = -1,
+#if 0 // unused
 	BUTTON_UP,
 	BUTTON_DOWN,
 	BUTTON_LEFT,
 	BUTTON_RIGHT,
+#endif
 	BUTTON_CROSS,
 	BUTTON_CIRCLE,
 	BUTTON_SQUARE,
@@ -111,10 +83,6 @@ enum
 	BUTTON_R1,
 	BUTTON_R2,
 	BUTTON_R3,
-	BUTTON_RSTICK_UP,
-	BUTTON_RSTICK_DOWN,
-	BUTTON_RSTICK_LEFT,
-	BUTTON_RSTICK_RIGHT,
 	MAX_BUTTON_ICONS
 };
 #endif // BUTTON_ICONS
@@ -123,24 +91,22 @@ enum
 class CFont
 {
 #ifdef MORE_LANGUAGES
-	static int16 Size[LANGSET_MAX][MAX_FONTS][210];
+	static int16 Size[LANGSET_MAX][MAX_FONTS][193];
 	static uint8 LanguageSet;
 	static int32 Slot;
 #else
-	static int16 Size[MAX_FONTS][210];
+	static int16 Size[MAX_FONTS][193];
 #endif
 	static int16 NewLine;
 public:
 	static CSprite2d Sprite[MAX_FONTS];
 	static CFontDetails Details;
-	static CFontRenderState RenderState;
 
 #ifdef BUTTON_ICONS
 	static int32 ButtonsSlot;
 	static CSprite2d ButtonSprite[MAX_BUTTON_ICONS];
 	static int PS2Symbol;
-	
-	static void LoadButtons(const char *txdPath);
+
 	static void DrawButton(float x, float y);
 #endif // BUTTON_ICONS
 
@@ -156,12 +122,11 @@ public:
 #endif
 	static int GetNumberLines(float xstart, float ystart, wchar *s);
 	static void GetTextRect(CRect *rect, float xstart, float ystart, wchar *s);
-//#ifdef MORE_LANGUAGES
-//	static bool PrintString(float x, float y, wchar *start, wchar* &end, float spwidth, float japX);
-//#else
-	static void PrintString(float x, float y, uint32, wchar *start, wchar *end, float spwidth);
-//#endif
-	static void PrintStringFromBottom(float x, float y, wchar *str);
+#ifdef MORE_LANGUAGES
+	static bool PrintString(float x, float y, wchar *start, wchar* &end, float spwidth, float japX);
+#else
+	static void PrintString(float x, float y, wchar *start, wchar *end, float spwidth);
+#endif
 	static float GetCharacterWidth(wchar c);
 	static float GetCharacterSize(wchar c);
 	static float GetStringWidth(wchar *s, bool spaces = false);
@@ -169,42 +134,78 @@ public:
 	static float GetStringWidth_Jap(wchar* s);
 #endif
 	static uint16 *GetNextSpace(wchar *s);
-//#ifdef MORE_LANGUAGES
-//	static uint16 *ParseToken(wchar *s, bool japShit = false);
-//#else
-	static uint16 *ParseToken(wchar *s);
-	static uint16 *ParseToken(wchar *s, CRGBA &color, bool &flash, bool &bold);
-//#endif
+#ifdef MORE_LANGUAGES
+	static uint16 *ParseToken(wchar *s, wchar*, bool japShit = false);
+#else
+	static uint16 *ParseToken(wchar *s, wchar*);
+#endif
 	static void DrawFonts(void);
-	static void RenderFontBuffer(void);
 	static uint16 character_code(uint8 c);
 
+	static CFontDetails GetDetails() { return Details; }
 	static void SetScale(float x, float y);
-	static void SetSlantRefPoint(float x, float y);
-	static void SetSlant(float s);
-	static void SetJustifyOn(void);
-	static void SetJustifyOff(void);
-	static void SetRightJustifyOn(void);
-	static void SetRightJustifyOff(void);
-	static void SetCentreOn(void);
-	static void SetCentreOff(void);
-	static void SetWrapx(float x);
-	static void SetCentreSize(float s);
-	static void SetBackgroundOn(void);
-	static void SetBackgroundOff(void);
-	static void SetBackGroundOnlyTextOn(void);
-	static void SetBackGroundOnlyTextOff(void);
-	static void SetPropOn(void);
-	static void SetPropOff(void);
-	static void SetFontStyle(int16 style);
-	static void SetRightJustifyWrap(float wrap);
-	static void SetAlphaFade(float fade);
-	static void SetDropShadowPosition(int16 pos);
+	static void SetSlantRefPoint(float x, float y) { Details.slantRefX = x; Details.slantRefY = y; }
+	static void SetSlant(float s) { Details.slant = s; }
+	static void SetJustifyOn(void) {
+		Details.justify = true;
+		Details.centre = false;
+		Details.rightJustify = false;
+	}
+	static void SetJustifyOff(void) {
+		Details.justify = false;
+		Details.rightJustify = false;
+	}
+	static void SetRightJustifyOn(void) {
+		Details.rightJustify = true;
+		Details.justify = false;
+		Details.centre = false;
+	}
+	static void SetRightJustifyOff(void) {
+		Details.rightJustify = false;
+		Details.justify = false;
+		Details.centre = false;
+	}
+	static void SetCentreOn(void) {
+		Details.centre = true;
+		Details.justify = false;
+		Details.rightJustify = false;
+	}
+	static void SetCentreOff(void) {
+		Details.centre = false;
+	}
+	static void SetAlignment(uint8 alignment) {
+		if (alignment == ALIGN_LEFT) {
+			CFont::Details.justify = true;
+			CFont::Details.centre = false;
+			CFont::Details.rightJustify = false;
+		}
+		else if (alignment == ALIGN_CENTER) {
+			CFont::Details.justify = false;
+			CFont::Details.centre = true;
+			CFont::Details.rightJustify = false;
+		}
+		else if (alignment == ALIGN_RIGHT) {
+			CFont::Details.justify = false;
+			CFont::Details.centre = false;
+			CFont::Details.rightJustify = true;
+		}
+	}
+	static void SetWrapx(float x) { Details.wrapX = x; }
+	static void SetCentreSize(float s) { Details.centreSize = s; }
+	static void SetBackgroundOn(void) { Details.background = true; }
+	static void SetBackgroundOff(void) { Details.background = false; }
+	static void SetBackGroundOnlyTextOn(void) { Details.backgroundOnlyText = true; }
+	static void SetBackGroundOnlyTextOff(void) { Details.backgroundOnlyText = false; }
+	static void SetPropOn(void) { Details.proportional = true; }
+	static void SetPropOff(void) { Details.proportional = false; }
+	static void SetFontStyle(int16 style) { Details.style = style; }
+	static void SetRightJustifyWrap(float wrap) { Details.rightJustifyWrap = wrap; }
+	static void SetAlphaFade(float fade) { Details.alphaFade = fade; }
+	static void SetDropShadowPosition(int16 pos) { Details.dropShadowPosition = pos; }
 	static void SetBackgroundColor(CRGBA col);
 	static void SetColor(CRGBA col);
 	static void SetDropColor(CRGBA col);
-	static wchar FindNewCharacter(wchar c);
-	static void FilterOutTokensFromString(wchar*);
+
 #ifdef MORE_LANGUAGES
 	static void ReloadFonts(uint8 set);
 
@@ -212,6 +213,6 @@ public:
 	static bool IsAnsiCharacter(wchar* s);
 	static bool IsJapanesePunctuation(wchar* str);
 	static bool IsJapanese() { return LanguageSet == FONT_LANGSET_JAPANESE; }
-	static bool IsJapaneseFont() { return IsJapanese() && (Details.style == FONT_JAPANESE);  }
+	static bool IsJapaneseFont() { return IsJapanese() && (Details.style == FONT_JAPANESE || Details.style == FONT_PAGER);  }
 #endif
 };

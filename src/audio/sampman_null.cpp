@@ -114,11 +114,6 @@ cSampleManager::SetMusicMasterVolume(uint8 nVolume)
 }
 
 void
-cSampleManager::SetMusicMasterVolume(uint8 nVolume)
-{
-}
-
-void
 cSampleManager::SetEffectsFadeVolume(uint8 nVolume)
 {
 }
@@ -302,7 +297,7 @@ cSampleManager::StopChannel(uint32 nChannel)
 }
 
 void
-cSampleManager::PreloadStreamedFile(uint32 nFile, uint8 nStream)
+cSampleManager::PreloadStreamedFile(uint8 nFile, uint8 nStream)
 {
 	ASSERT( nStream < MAX_STREAMS );
 }
@@ -320,7 +315,7 @@ cSampleManager::StartPreloadedStreamedFile(uint8 nStream)
 }
 
 bool
-cSampleManager::StartStreamedFile(uint32 nFile, uint32 nPos, uint8 nStream)
+cSampleManager::StartStreamedFile(uint8 nFile, uint32 nPos, uint8 nStream)
 {	
 	ASSERT( nStream < MAX_STREAMS );
 	
@@ -368,16 +363,6 @@ cSampleManager::InitialiseSampleBanks(void)
 {
 	
 	return true;
-}
-
-void
-cSampleManager::SetStreamedFileLoopFlag(uint8 nLoopFlag, uint8 nChannel)
-{
-}
-
-int8 cSampleManager::AutoDetect3DProviders()
-{
-	return -1;
 }
 
 #endif

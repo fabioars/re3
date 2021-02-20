@@ -1,93 +1,75 @@
 #pragma once
 
-template<typename T, int32 n>
+template<typename T, int n>
 class CStore
 {
 public:
-	int32 allocPtr;
+	int allocPtr;
 	T store[n];
 
-	T *Alloc(void){
-		if(allocPtr >= n){
+	T *alloc(void){
+		if(this->allocPtr >= n){
 			printf("Size of this thing:%d needs increasing\n", n);
 			assert(0);
 		}
-		return &store[allocPtr++];
+		return &this->store[this->allocPtr++];
 	}
-	void Clear(void){
-		allocPtr = 0;
+	void clear(void){
+		this->allocPtr = 0;
 	}
-	int32 GetIndex(T *item){
-		assert(item >= &store[0]);
-		assert(item < &store[n]);
-		return item - store;
+	int getIndex(T *item){
+		assert(item >= &this->store[0]);
+		assert(item < &this->store[n]);
+		return item - this->store;
 	}
-	T *GetItem(int32 index){
+	T *getItem(int index){
 		assert(index >= 0);
 		assert(index < n);
-		return &store[index];
+		return &this->store[index];
 	}
 };
-
-#define POOLFLAG_ID     0x7f
-#define POOLFLAG_ISFREE 0x80
 
 template<typename T, typename U = T>
 class CPool
 {
 	U     *m_entries;
-	uint8 *m_flags;
-	int32  m_size;
-	int32  m_allocPtr;
+	union Flags {
+		struct {
+			uint8 id   : 7;
+			uint8 free : 1;
+		};
+			uint8 u;
+	}     *m_flags;
+	int    m_size;
+	int    m_allocPtr;
 
 public:
-	CPool(int32 size, const char *name){
+	CPool(int size){
+		// TODO: use new here
 		m_entries = (U*)new uint8[sizeof(U)*size];
-		m_flags = new uint8[size];
+		m_flags = (Flags*)new uint8[sizeof(Flags)*size];
 		m_size = size;
-		m_allocPtr = -1;
+		m_allocPtr = 0;
 		for(int i = 0; i < size; i++){
-			SetId(i, 0);
-			SetIsFree(i, true);
+			m_flags[i].id   = 0;
+			m_flags[i].free = 1;
 		}
 	}
 
-	int GetId(int i) const
-	{
-		return m_flags[i] & POOLFLAG_ID;
-	}
-
-	bool GetIsFree(int i) const
-	{
-		return !!(m_flags[i] & POOLFLAG_ISFREE);
-	}
-
-	void SetId(int i, int id)
-	{
-		m_flags[i] = (m_flags[i] & POOLFLAG_ISFREE) | (id & POOLFLAG_ID);
-	}
-
-	void SetIsFree(int i, bool isFree)
-	{
-		if (isFree)
-			m_flags[i] |= POOLFLAG_ISFREE;
-		else
-			m_flags[i] &= ~POOLFLAG_ISFREE;
-	}
 	~CPool() {
 		Flush();
 	}
 	void Flush() {
 		if (m_size > 0) {
 			delete[] (uint8*)m_entries;
-			delete[] m_flags;
+			delete[] (uint8*)m_flags;
 			m_entries = nil;
 			m_flags = nil;
 			m_size = 0;
 			m_allocPtr = 0;
 		}
 	}
-	int32 GetSize(void) const { return m_size; }
+	int GetSize(void) const { return m_size; }
 	T *New(void){
 		bool wrapped = false;
 		do
@@ -106,66 +88,60 @@ public:
 				m_allocPtr = 0;
 			}
 #endif
-		while(!GetIsFree(m_allocPtr));
-		SetIsFree(m_allocPtr, false);
-		SetId(m_allocPtr, GetId(m_allocPtr)+1);
+		while(!m_flags[m_allocPtr].free);
+		m_flags[m_allocPtr].free = 0;
+		m_flags[m_allocPtr].id++;
 		return (T*)&m_entries[m_allocPtr];
 	}
-	T *New(int32 handle){
+	T *New(int handle){
 		T *entry = (T*)&m_entries[handle>>8];
 		SetNotFreeAt(handle);
 		return entry;
 	}
-	void SetNotFreeAt(int32 handle){
+	void SetNotFreeAt(int handle){
 		int idx = handle>>8;
-		SetIsFree(idx, false);
-		SetId(idx, handle & POOLFLAG_ID);
+		m_flags[idx].free = 0;
+		m_flags[idx].id = handle & 0x7F;
 		for(m_allocPtr = 0; m_allocPtr < m_size; m_allocPtr++)
-			if(GetIsFree(m_allocPtr))
+			if(m_flags[m_allocPtr].free)
 				return;
 	}
 	void Delete(T *entry){
 		int i = GetJustIndex(entry);
-		SetIsFree(i, true);
+		m_flags[i].free = 1;
 		if(i < m_allocPtr)
 			m_allocPtr = i;
 	}
 	T *GetSlot(int i){
-		return GetIsFree(i) ? nil : (T*)&m_entries[i];
+		return m_flags[i].free ? nil : (T*)&m_entries[i];
 	}
 	T *GetAt(int handle){
 #ifdef FIX_BUGS
 		if (handle == -1)
 			return nil;
 #endif
-		return m_flags[handle>>8] == (handle & 0xFF) ?
+		return m_flags[handle>>8].u == (handle & 0xFF) ?
 		       (T*)&m_entries[handle >> 8] : nil;
 	}
-	int32 GetIndex(T* entry) {
-		int i = GetJustIndex_NoFreeAssert(entry);
-		return m_flags[i] + (i<<8);
+	int GetIndex(T *entry){
+		int i = GetJustIndex(entry);
+		return m_flags[i].u + (i<<8);
 	}
-	int32 GetJustIndex(T* entry) {
-		int index = GetJustIndex_NoFreeAssert(entry);
-		assert((U*)entry == (U*)&m_entries[index]); // cast is unsafe - check required
-		assert(!GetIsFree(index));
-		return index;
+	int GetJustIndex(T *entry){
+		// TODO: the cast is unsafe
+		return (int)((U*)entry - m_entries);
 	}
-	int32 GetJustIndex_NoFreeAssert(T* entry) {
-		int index = ((U*)entry - m_entries);
-		// Please don't add unsafe assert here, because at least one func. use this to check if entity is ped or vehicle.
-		return index;
-	}
-	int32 GetNoOfUsedSpaces(void) const {
+	int GetNoOfUsedSpaces(void) const{
 		int i;
 		int n = 0;
 		for(i = 0; i < m_size; i++)
-			if(!GetIsFree(i))
+			if(!m_flags[i].free)
 				n++;
 		return n;
 	}
+	bool IsFreeSlot(int i) { return !!m_flags[i].free; }
 	void ClearStorage(uint8 *&flags, U *&entries){
-		delete[] flags;
+		delete[] (uint8*)flags;
 		delete[] (uint8*)entries;
 		flags = nil;
 		entries = nil;
@@ -174,7 +150,7 @@ public:
 	void CopyBack(uint8 *&flags, U *&entries){
 		memcpy(m_flags, flags, sizeof(uint8)*m_size);
 		memcpy(m_entries, entries, sizeof(U)*m_size);
-		debug("Size copied:%d (%d)\n", sizeof(U)*m_size, m_size);
+		debug("Size copied:%d (%d)\n", sizeof(U)*m_size, sizeof(Flags)*m_size);
 		m_allocPtr = 0;
 		ClearStorage(flags, entries);
 		debug("CopyBack:%d (/%d)\n", GetNoOfUsedSpaces(), m_size); /* Assumed inlining */
@@ -186,7 +162,6 @@ public:
 		memcpy(entries, m_entries, sizeof(U)*m_size);
 		debug("Stored:%d (/%d)\n", GetNoOfUsedSpaces(), m_size); /* Assumed inlining */
 	}
-	int32 GetNoOfFreeSpaces() const { return GetSize() - GetNoOfUsedSpaces(); }
 };
 
 template<typename T>
@@ -260,7 +235,7 @@ public:
 		link->Remove();		// remove from list
 		freeHead.Insert(link);	// insert into free list
 	}
-	int32 Count(void){
+	int Count(void){
 		int n = 0;
 		CLink<T> *lnk;
 		for(lnk = head.next; lnk != &tail; lnk = lnk->next)

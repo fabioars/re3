@@ -10,10 +10,13 @@
 
 #include "skeleton.h"
 #include "platform.h"
-#include "main.h"
 #include "MemoryHeap.h"
 
+
+
 static RwBool               DefaultVideoMode = TRUE;
+
+bool TurnOnAnimViewer = false;
 
 RsGlobalType                RsGlobal;
 
@@ -159,7 +162,7 @@ rsPreInitCommandLine(RwChar *arg)
 #ifndef MASTER
 	if (!strcmp(arg, RWSTRING("-animviewer")))
 	{
-		gbModelViewer = TRUE;
+		TurnOnAnimViewer = TRUE;
 
 		return TRUE;
 	}
@@ -305,6 +308,8 @@ RsRwInitialize(void *displayID)
 {
 	RwEngineOpenParams  openParams;
 
+	PUSH_MEMID(MEMID_RENDER);	// NB: not popped on failed return
+
 	/*
 	 * Start RenderWare...
 	 */
@@ -369,8 +374,10 @@ RsRwInitialize(void *displayID)
 
 	psNativeTextureSupport();
 
-	RwTextureSetAutoMipmapping(TRUE);
 	RwTextureSetMipmapping(FALSE);
+	RwTextureSetAutoMipmapping(FALSE);
+
+	POP_MEMID();
 
 	return TRUE;
 }
@@ -397,7 +404,7 @@ RsInitialize(void)
 	 */
 	RwBool              result;
 
-	RsGlobal.appName = RWSTRING("GTA: Vice City");
+	RsGlobal.appName = RWSTRING("GTA3");
 	RsGlobal.maximumWidth = DEFAULT_SCREEN_WIDTH;
 	RsGlobal.maximumHeight = DEFAULT_SCREEN_HEIGHT;
 	RsGlobal.width = DEFAULT_SCREEN_WIDTH;

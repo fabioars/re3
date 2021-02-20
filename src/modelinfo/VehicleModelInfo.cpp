@@ -23,6 +23,7 @@
 
 int8 CVehicleModelInfo::ms_compsToUse[2] = { -2, -2 };
 int8 CVehicleModelInfo::ms_compsUsed[2];
+RwTexture *CVehicleModelInfo::ms_pEnvironmentMaps[NUM_VEHICLE_ENVMAPS];
 RwRGBA CVehicleModelInfo::ms_vehicleColourTable[256];
 RwTexture *CVehicleModelInfo::ms_colourTextureTable[256];
 
@@ -82,23 +83,9 @@ RwObjectNameIdAssocation carIds[] = {
 };
 
 RwObjectNameIdAssocation boatIds[] = {
-	{ "boat_moving_hi",	BOAT_MOVING,	0 },
-	{ "boat_rudder_hi",	BOAT_RUDDER,	0 },
-	{ "boat_flap_left",	BOAT_FLAP_LEFT,	0 },
-	{ "boat_flap_right",	BOAT_FLAP_RIGHT,	0 },
-	{ "boat_rearflap_left",	BOAT_REARFLAP_LEFT,	0 },
-	{ "boat_rearflap_right",	BOAT_REARFLAP_RIGHT,	0 },
-#ifdef FIX_BUGS
-	// let's just accept both
-	{ "windscreen",		BOAT_WINDSCREEN,	VEHICLE_FLAG_WINDSCREEN | VEHICLE_FLAG_DRAWLAST },
-	{ "windscreen_hi_ok",		BOAT_WINDSCREEN,	VEHICLE_FLAG_WINDSCREEN | VEHICLE_FLAG_DRAWLAST },
-#else
-#ifdef GTA_PS2
-	{ "windscreen",		BOAT_WINDSCREEN,	VEHICLE_FLAG_WINDSCREEN | VEHICLE_FLAG_DRAWLAST },
-#else
-	{ "windscreen_hi_ok",		BOAT_WINDSCREEN,	VEHICLE_FLAG_WINDSCREEN | VEHICLE_FLAG_DRAWLAST },
-#endif
-#endif
+	{ "boat_moving_hi",	BOAT_MOVING,	VEHICLE_FLAG_COLLAPSE },
+	{ "boat_rudder_hi",	BOAT_RUDDER,	VEHICLE_FLAG_COLLAPSE },
+	{ "windscreen",		BOAT_WINDSCREEN,	VEHICLE_FLAG_WINDSCREEN | VEHICLE_FLAG_COLLAPSE },
 	{ "ped_frontseat",	BOAT_POS_FRONTSEAT,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
 	{ nil, 0, 0 }
 };
@@ -141,9 +128,7 @@ RwObjectNameIdAssocation bikeIds[] = {
 	{ "wheel_front",	BIKE_WHEEL_FRONT,	0 },
 	{ "wheel_rear",		BIKE_WHEEL_REAR,	0 },
 	{ "mudguard",		BIKE_MUDGUARD,	0 },
-	{ "handlebars",		BIKE_HANDLEBARS,	0 },
 	{ "ped_frontseat",	CAR_POS_FRONTSEAT,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
-	{ "ped_backseat",	CAR_POS_BACKSEAT,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
 	{ "headlights",		CAR_POS_HEADLIGHTS,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
 	{ "taillights",		CAR_POS_TAILLIGHTS,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
 	{ "exhaust",		CAR_POS_EXHAUST,	VEHICLE_FLAG_POS | CLUMP_FLAG_NO_HIERID },
@@ -165,8 +150,6 @@ RwObjectNameIdAssocation *CVehicleModelInfo::ms_vehicleDescs[] = {
 	bikeIds
 };
 
-bool gbBlackCars;
-bool gbPinkCars;
 
 CVehicleModelInfo::CVehicleModelInfo(void)
  : CClumpModelInfo(MITYPE_VEHICLE)
@@ -178,7 +161,6 @@ CVehicleModelInfo::CVehicleModelInfo(void)
 		m_positions[i].z = 0.0f;
 	}
 	m_numColours = 0;
-	m_animFileIndex = -1;
 }
 
 void
@@ -209,7 +191,7 @@ CVehicleModelInfo::CreateInstance(void)
 		clumpframe = RpClumpGetFrame(clump);
 
 		comp1 = ChooseComponent();
-		if(comp1 != -1 && m_comps[comp1]){
+		if(comp1 != -1){
 			atomic = RpAtomicClone(m_comps[comp1]);
 			f = RwFrameCreate();
 			RwFrameTransform(f,
@@ -222,7 +204,7 @@ CVehicleModelInfo::CreateInstance(void)
 		ms_compsUsed[0] = comp1;
 
 		comp2 = ChooseSecondComponent();
-		if(comp2 != -1 && m_comps[comp2]){
+		if(comp2 != -1){
 			atomic = RpAtomicClone(m_comps[comp2]);
 			f = RwFrameCreate();
 			RwFrameTransform(f,
@@ -248,28 +230,8 @@ CVehicleModelInfo::SetClump(RpClump *clump)
 	SetFrameIds(ms_vehicleDescs[m_vehicleType]);
 	PreprocessHierarchy();
 	FindEditableMaterialList();
+	m_envMap = nil;
 	SetEnvironmentMap();
-}
-
-void
-CVehicleModelInfo::SetAnimFile(const char *file)
-{
-	if(strcasecmp(file, "null") == 0)
-		return;
-
-	m_animFileName = new char[strlen(file)+1];
-	strcpy(m_animFileName, file);
-}
-
-void
-CVehicleModelInfo::ConvertAnimFileIndex(void)
-{
-	if(m_animFileIndex != -1){
-		// we have a string pointer in that union
-		int32 index = CAnimManager::GetAnimationBlockIndex(m_animFileName);
-		delete[] m_animFileName;
-		m_animFileIndex = index;
-	}
 }
 
 RwFrame*
@@ -331,7 +293,7 @@ CVehicleModelInfo::SetAtomicRendererCB(RpAtomic *atomic, void *data)
 	name = GetFrameNodeName(RpAtomicGetFrame(atomic));
 	alpha = false;
 	RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), HasAlphaMaterialCB, &alpha);
-	if(strstr(name, "_hi") || !CGeneral::faststrncmp(name, "extra", 5)) {
+	if(strstr(name, "_hi") || strncmp(name, "extra", 5) == 0){
 		if(alpha || strncmp(name, "windscreen", 10) == 0)
 			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailAlphaCB);
 		else
@@ -339,7 +301,7 @@ CVehicleModelInfo::SetAtomicRendererCB(RpAtomic *atomic, void *data)
 	}else if(strstr(name, "_lo")){
 		RpClumpRemoveAtomic(clump, atomic);
 		RpAtomicDestroy(atomic);
-		return atomic;		// BUG: nil in gta
+		return atomic;		// BUG: not done by gta
 	}else if(strstr(name, "_vlo"))
 		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleReallyLowDetailCB);
 	else
@@ -357,7 +319,7 @@ CVehicleModelInfo::SetAtomicRendererCB_BigVehicle(RpAtomic *atomic, void *data)
 	name = GetFrameNodeName(RpAtomicGetFrame(atomic));
 	alpha = false;
 	RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), HasAlphaMaterialCB, &alpha);
-	if(strstr(name, "_hi") || !CGeneral::faststrncmp(name, "extra", 5)) {
+	if(strstr(name, "_hi") || strncmp(name, "extra", 5) == 0){
 		if(alpha)
 			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailAlphaCB_BigVehicle);
 		else
@@ -402,31 +364,21 @@ CVehicleModelInfo::SetAtomicRendererCB_Boat(RpAtomic *atomic, void *data)
 {
 	RpClump *clump;
 	char *name;
-	bool alpha;
 
 	clump = (RpClump*)data;
 	name = GetFrameNodeName(RpAtomicGetFrame(atomic));
-	alpha = false;
-	RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), HasAlphaMaterialCB, &alpha);
-	if(strcmp(name, "boat_hi") == 0 || !CGeneral::faststrncmp(name, "extra", 5))
+	if(strcmp(name, "boat_hi") == 0 || strncmp(name, "extra", 5) == 0)
 		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailCB_Boat);
-	else if(strstr(name, "_hi")){
-		if(alpha)
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailAlphaCB_Boat);
-		else
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailCB);
-	}else if(strstr(name, "_lo")){
+	else if(strstr(name, "_hi"))
+		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailCB);
+	else if(strstr(name, "_lo")){
 		RpClumpRemoveAtomic(clump, atomic);
 		RpAtomicDestroy(atomic);
 		return atomic;		// BUG: not done by gta
 	}else if(strstr(name, "_vlo"))
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleLoDetailCB_Boat);
-	else{
-		if(alpha)
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailAlphaCB_Boat);
-		else
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, nil);
-	}
+		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleReallyLowDetailCB_BigVehicle);
+	else
+		CVisibilityPlugins::SetAtomicRenderCallback(atomic, nil);
 	HideDamagedAtomicCB(atomic, nil);
 	return atomic;
 }
@@ -434,68 +386,30 @@ CVehicleModelInfo::SetAtomicRendererCB_Boat(RpAtomic *atomic, void *data)
 RpAtomic*
 CVehicleModelInfo::SetAtomicRendererCB_Heli(RpAtomic *atomic, void *data)
 {
-	char *name;
-
-	name = GetFrameNodeName(RpAtomicGetFrame(atomic));
-	if(strncmp(name, "toprotor", 8) == 0)
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleRotorAlphaCB);
-	else if(strncmp(name, "rearrotor", 9) == 0)
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleTailRotorAlphaCB);
-	else
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, nil);
-	return atomic;
-}
-
-RpAtomic*
-CVehicleModelInfo::SetAtomicRendererCB_RealHeli(RpAtomic *atomic, void *data)
-{
-	RpClump *clump;
-	char *name;
-	bool alpha;
-
-	clump = (RpClump*)data;
-	name = GetFrameNodeName(RpAtomicGetFrame(atomic));
-	alpha = false;
-	RpGeometryForAllMaterials(RpAtomicGetGeometry(atomic), HasAlphaMaterialCB, &alpha);
-	if(strncmp(name, "toprotor", 8) == 0)
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleRotorAlphaCB);
-	else if(strncmp(name, "rearrotor", 9) == 0)
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleTailRotorAlphaCB);
-	else if(strstr(name, "_hi") || !CGeneral::faststrncmp(name, "extra", 5)) {
-		if(alpha || strncmp(name, "windscreen", 10) == 0)
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailAlphaCB);
-		else
-			CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleHiDetailCB);
-	}else if(strstr(name, "_lo")){
-		RpClumpRemoveAtomic(clump, atomic);
-		RpAtomicDestroy(atomic);
-		return atomic;		// BUG: nil in gta
-	}else if(strstr(name, "_vlo"))
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, CVisibilityPlugins::RenderVehicleReallyLowDetailCB);
-	else
-		CVisibilityPlugins::SetAtomicRenderCallback(atomic, nil);
-	HideDamagedAtomicCB(atomic, nil);
+	CVisibilityPlugins::SetAtomicRenderCallback(atomic, nil);
 	return atomic;
 }
 
 void
 CVehicleModelInfo::SetAtomicRenderCallbacks(void)
 {
-#ifdef GTA_TRAIN
-	if(m_vehicleType == VEHICLE_TYPE_TRAIN)
+	switch(m_vehicleType){
+	case VEHICLE_TYPE_TRAIN:
 		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB_Train, nil);
-	else
-#endif
-	if(m_vehicleType == VEHICLE_TYPE_HELI)
+		break;
+	case VEHICLE_TYPE_HELI:
 		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB_Heli, nil);
-	else if(m_vehicleType == VEHICLE_TYPE_PLANE)
+		break;
+	case VEHICLE_TYPE_PLANE:
 		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB_BigVehicle, nil);
-	else if(m_vehicleType == VEHICLE_TYPE_BOAT)
+		break;
+	case VEHICLE_TYPE_BOAT:
 		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB_Boat, m_clump);
-	else if(mod_HandlingManager.GetHandlingData((tVehicleType)m_handlingId)->Flags & HANDLING_IS_HELI)
-		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB_RealHeli, m_clump);
-	else
+		break;
+	default:
 		RpClumpForAllAtomics(m_clump, SetAtomicRendererCB, m_clump);
+		break;
+	}
 }
 
 RwObject*
@@ -557,7 +471,7 @@ CVehicleModelInfo::PreprocessHierarchy(void)
 
 		if(desc[i].flags & VEHICLE_FLAG_POS){
 			f = assoc.frame;
-			rwvec = &m_positions[desc[i].hierId];
+			rwvec = (RwV3d*)&m_positions[desc[i].hierId];
 			*rwvec = *RwMatrixGetPos(RwFrameGetMatrix(f));
 			for(f = RwFrameGetParent(f); f; f = RwFrameGetParent(f))
 				RwV3dTransformPoints(rwvec, rwvec, 1, RwFrameGetMatrix(f));
@@ -639,9 +553,9 @@ CVehicleModelInfo::SetVehicleComponentFlags(RwFrame *frame, uint32 flags)
 		SETFLAGS(ATOMIC_FLAG_FRONT);
 	else if(flags & VEHICLE_FLAG_REAR && (handling->Flags & HANDLING_IS_VAN || (flags & (VEHICLE_FLAG_LEFT|VEHICLE_FLAG_RIGHT)) == 0))
 		SETFLAGS(ATOMIC_FLAG_REAR);
-	else if(flags & VEHICLE_FLAG_LEFT)
+	if(flags & VEHICLE_FLAG_LEFT)
 		SETFLAGS(ATOMIC_FLAG_LEFT);
-	else if(flags & VEHICLE_FLAG_RIGHT)
+	if(flags & VEHICLE_FLAG_RIGHT)
 		SETFLAGS(ATOMIC_FLAG_RIGHT);
 
 	if(flags & VEHICLE_FLAG_REARDOOR)
@@ -692,17 +606,6 @@ ChooseComponent(int32 rule, int32 comps)
 		// only valid in rain
 		n = CGeneral::GetRandomNumberInRange(0, CountCompsInRule(comps));
 		return COMPRULE_COMPN(comps, n);
-	case 3:
-		n = CGeneral::GetRandomNumberInRange(0, 1+CountCompsInRule(comps));
-		if(n != 0)
-			return COMPRULE_COMPN(comps, n-1);
-		return -1;
-	case 4:
-#ifdef FIX_BUGS
-		return CGeneral::GetRandomNumberInRange(0, 6);
-#else
-		return CGeneral::GetRandomNumberInRange(0, 5);
-#endif
 	}
 	return -1;
 }
@@ -806,7 +709,7 @@ struct editableMatCBData
 RpMaterial*
 CVehicleModelInfo::GetEditableMaterialListCB(RpMaterial *material, void *data)
 {
-	RwRGBA white = { 255, 255, 255, 255 };
+	static RwRGBA white = { 255, 255, 255, 255 };
 	const RwRGBA *col;
 	editableMatCBData *cbdata;
 
@@ -829,9 +732,6 @@ CVehicleModelInfo::GetEditableMaterialListCB(RpAtomic *atomic, void *data)
 	return atomic;
 }
 
-static int maxFirstMaterials;
-static int maxSecondMaterials;
-
 void
 CVehicleModelInfo::FindEditableMaterialList(void)
 {
@@ -846,8 +746,6 @@ CVehicleModelInfo::FindEditableMaterialList(void)
 		GetEditableMaterialListCB(m_comps[i], &cbdata);
 	m_materials1[cbdata.numMats1] = nil;
 	m_materials2[cbdata.numMats2] = nil;
-	maxFirstMaterials = Max(maxFirstMaterials, cbdata.numMats1);
-	maxSecondMaterials = Max(maxSecondMaterials, cbdata.numMats2);
 	m_currentColour1 = -1;
 	m_currentColour2 = -1;
 }
@@ -856,26 +754,35 @@ void
 CVehicleModelInfo::SetVehicleColour(uint8 c1, uint8 c2)
 {
 	RwRGBA col, *colp;
+	RwTexture *coltex;
 	RpMaterial **matp;
 
 	if(c1 != m_currentColour1){
 		col = ms_vehicleColourTable[c1];
+		coltex = ms_colourTextureTable[c1];
 		for(matp = m_materials1; *matp; matp++){
-			colp = (RwRGBA*)RpMaterialGetColor(*matp);	// get rid of const
-			colp->red = col.red;
-			colp->green = col.green;
-			colp->blue = col.blue;
+			if(RpMaterialGetTexture(*matp) && RwTextureGetName(RpMaterialGetTexture(*matp))[0] != '@'){
+				colp = (RwRGBA*)RpMaterialGetColor(*matp);	// get rid of const
+				colp->red = col.red;
+				colp->green = col.green;
+				colp->blue = col.blue;
+			}else
+				RpMaterialSetTexture(*matp, coltex);
 		}
 		m_currentColour1 = c1;
 	}
 
 	if(c2 != m_currentColour2){
 		col = ms_vehicleColourTable[c2];
+		coltex = ms_colourTextureTable[c2];
 		for(matp = m_materials2; *matp; matp++){
-			colp = (RwRGBA*)RpMaterialGetColor(*matp);	// get rid of const
-			colp->red = col.red;
-			colp->green = col.green;
-			colp->blue = col.blue;
+			if(RpMaterialGetTexture(*matp) && RwTextureGetName(RpMaterialGetTexture(*matp))[0] != '@'){
+				colp = (RwRGBA*)RpMaterialGetColor(*matp);	// get rid of const
+				colp->red = col.red;
+				colp->green = col.green;
+				colp->blue = col.blue;
+			}else
+				RpMaterialSetTexture(*matp, coltex);
 		}
 		m_currentColour2 = c2;
 	}
@@ -884,12 +791,9 @@ CVehicleModelInfo::SetVehicleColour(uint8 c1, uint8 c2)
 void
 CVehicleModelInfo::ChooseVehicleColour(uint8 &col1, uint8 &col2)
 {
-	if(m_numColours == 0 || gbBlackCars){
+	if(m_numColours == 0){
 		col1 = 0;
 		col2 = 0;
-	}else if(gbPinkCars){
-		col1 = 68;
-		col2 = 68;
 	}else{
 		m_lastColorVariation = (m_lastColorVariation+1) % m_numColours;
 		col1 = m_colours1[m_lastColorVariation];
@@ -912,27 +816,18 @@ CVehicleModelInfo::AvoidSameVehicleColour(uint8 *col1, uint8 *col2)
 {
 	int i, n;
 
-	if(gbBlackCars){
-		*col1 = 0;
-		*col2 = 0;
-	}else if(gbPinkCars){
-		*col1 = 68;
-		*col2 = 68;
-	}else{
-		if(m_numColours > 1)
-			for(i = 0; i < 8; i++){
-				if(*col1 != m_lastColour1 || *col2 != m_lastColour2)
-					break;
-				n = CGeneral::GetRandomNumberInRange(0, m_numColours);
-				*col1 = m_colours1[n];
-				*col2 = m_colours2[n];
-			}
-		m_lastColour1 = *col1;
-		m_lastColour2 = *col2;
-	}
+	if(m_numColours > 1)
+		for(i = 0; i < 8; i++){
+			if(*col1 != m_lastColour1 || *col2 != m_lastColour2)
+				break;
+			n = CGeneral::GetRandomNumberInRange(0, m_numColours);
+			*col1 = m_colours1[n];
+			*col2 = m_colours2[n];
+		}
+	m_lastColour1 = *col1;
+	m_lastColour2 = *col2;
 }
 
-// unused
 RwTexture*
 CreateCarColourTexture(uint8 r, uint8 g, uint8 b)
 {
@@ -1019,11 +914,11 @@ CVehicleModelInfo::LoadVehicleColours(void)
 			continue;
 
 		if(section == NONE){
-			if(line[start] == 'c' && line[start + 1] == 'o' && line[start + 2] == 'l')
+			if(strncmp(&line[start], "col", 3) == 0)
 				section = COLOURS;
-			if(line[start] == 'c' && line[start + 1] == 'a' && line[start + 2] == 'r')
+			else if(strncmp(&line[start], "car", 3) == 0)
 				section = CARS;
-		}else if(line[start] == 'e' && line[start + 1] == 'n' && line[start + 2] == 'd'){
+		}else if(strncmp(&line[start], "end", 3) == 0){
 			section = NONE;
 		}else if(section == COLOURS){
 			sscanf(&line[start],	// BUG: games doesn't add start
@@ -1032,6 +927,7 @@ CVehicleModelInfo::LoadVehicleColours(void)
 			ms_vehicleColourTable[numCols].green = g;
 			ms_vehicleColourTable[numCols].blue = b;
 			ms_vehicleColourTable[numCols].alpha = 0xFF;
+			ms_colourTextureTable[numCols] = CreateCarColourTexture(r, g, b);
 			numCols++;
 		}else if(section == CARS){
 			n = sscanf(&line[start],	// BUG: games doesn't add start
@@ -1066,33 +962,38 @@ CVehicleModelInfo::DeleteVehicleColourTextures(void)
 	for(i = 0; i < 256; i++){
 		if(ms_colourTextureTable[i]){
 			RwTextureDestroy(ms_colourTextureTable[i]);
+#if GTA_VERSION >= GTA3_PC_11
 			ms_colourTextureTable[i] = nil;
+#endif
 		}
 	}
 }
 
 RpMaterial*
-CVehicleModelInfo::GetMatFXEffectMaterialCB(RpMaterial *material, void *data)
+CVehicleModelInfo::HasSpecularMaterialCB(RpMaterial *material, void *data)
 {
-	if(RpMatFXMaterialGetEffects(material) == rpMATFXEFFECTNULL)
+	if(RpMaterialGetSurfaceProperties(material)->specular <= 0.0f)
 		return material;
-	*(int*)data = RpMatFXMaterialGetEffects(material);
+	*(bool*)data = true;
 	return nil;
 }
 
 RpMaterial*
-CVehicleModelInfo::SetDefaultEnvironmentMapCB(RpMaterial *material, void *data)
+CVehicleModelInfo::SetEnvironmentMapCB(RpMaterial *material, void *data)
 {
-	if(RpMatFXMaterialGetEffects(material) == rpMATFXEFFECTENVMAP){
-		RpMatFXMaterialSetEnvMapFrame(material, pMatFxIdentityFrame);
+	float spec;
+
+	spec = RpMaterialGetSurfaceProperties(material)->specular;
+	if(spec <= 0.0f)
+		RpMatFXMaterialSetEffects(material, rpMATFXEFFECTNULL);
+	else{
 		if(RpMaterialGetTexture(material) == nil)
 			RpMaterialSetTexture(material, gpWhiteTexture);
 		RpMatFXMaterialSetEffects(material, rpMATFXEFFECTENVMAP);
 #ifndef PS2_MATFX
-		float coef = RpMatFXMaterialGetEnvMapCoefficient(material);
-		coef *= 0.25f;	// Tone down a bit for PC
-		RpMatFXMaterialSetEnvMapCoefficient(material, coef);
+		spec *= 0.5f;	// Tone down a bit for PC
 #endif
+		RpMatFXMaterialSetupEnvMap(material, (RwTexture*)data, pMatFxIdentityFrame, false, spec);
 	}
 	return material;
 }
@@ -1100,15 +1001,17 @@ CVehicleModelInfo::SetDefaultEnvironmentMapCB(RpMaterial *material, void *data)
 RpAtomic*
 CVehicleModelInfo::SetEnvironmentMapCB(RpAtomic *atomic, void *data)
 {
-	int fx;
+	bool hasSpec;
 	RpGeometry *geo;
 
 	geo = RpAtomicGetGeometry(atomic);
-	fx = rpMATFXEFFECTNULL;
-	RpGeometryForAllMaterials(geo, GetMatFXEffectMaterialCB, &fx);
-	if(fx != rpMATFXEFFECTNULL){
+	hasSpec = 0;
+	RpGeometryForAllMaterials(geo, HasSpecularMaterialCB, &hasSpec);
+	if(hasSpec){
+		RpGeometryForAllMaterials(geo, SetEnvironmentMapCB, data);
+		RpGeometrySetFlags(geo, RpGeometryGetFlags(geo) | rpGEOMETRYMODULATEMATERIALCOLOR);
 		RpMatFXAtomicEnableEffects(atomic);
-		RpGeometryForAllMaterials(geo, SetDefaultEnvironmentMapCB, data);
+		// PS2 sets of PS2Manager lighting CB here
 	}
 	return atomic;
 }
@@ -1120,18 +1023,20 @@ CVehicleModelInfo::SetEnvironmentMap(void)
 	int32 i;
 
 	if(pMatFxIdentityFrame == nil){
-		RwV3d axis = { 1.0f, 0.0f, 0.0f };
 		pMatFxIdentityFrame = RwFrameCreate();
-		RwMatrixRotate(RwFrameGetMatrix(pMatFxIdentityFrame), &axis, 60.0f, rwCOMBINEREPLACE);
+		RwMatrixSetIdentity(RwFrameGetMatrix(pMatFxIdentityFrame));
 		RwFrameUpdateObjects(pMatFxIdentityFrame);
 		RwFrameGetLTM(pMatFxIdentityFrame);
 	}
 
-	RpClumpForAllAtomics(m_clump, SetEnvironmentMapCB, nil);
-	if(m_wheelId != -1){
-		wheelmi = (CSimpleModelInfo*)CModelInfo::GetModelInfo(m_wheelId);
-		for(i = 0; i < wheelmi->m_numAtomics; i++)
-			SetEnvironmentMapCB(wheelmi->m_atomics[i], nil);
+	if(m_envMap != ms_pEnvironmentMaps[0]){
+		m_envMap = ms_pEnvironmentMaps[0];
+		RpClumpForAllAtomics(m_clump, SetEnvironmentMapCB, m_envMap);
+		if(m_wheelId != -1){
+			wheelmi = (CSimpleModelInfo*)CModelInfo::GetModelInfo(m_wheelId);
+			for(i = 0; i < wheelmi->m_numAtomics; i++)
+				SetEnvironmentMapCB(wheelmi->m_atomics[i], m_envMap);
+		}
 	}
 
 #ifdef EXTENDED_PIPELINES
@@ -1142,11 +1047,24 @@ CVehicleModelInfo::SetEnvironmentMap(void)
 void
 CVehicleModelInfo::LoadEnvironmentMaps(void)
 {
+	const char *texnames[] = {
+		"reflection01",		// only one used
+		"reflection02",
+		"reflection03",
+		"reflection04",
+		"reflection05",
+		"reflection06",
+	};
 	int32 txdslot;
+	int32 i;
 
 	txdslot = CTxdStore::FindTxdSlot("particle");
 	CTxdStore::PushCurrentTxd();
 	CTxdStore::SetCurrentTxd(txdslot);
+	for(i = 0; i < NUM_VEHICLE_ENVMAPS; i++){
+		ms_pEnvironmentMaps[i] = RwTextureRead(texnames[i], nil);
+		RwTextureSetFilterMode(ms_pEnvironmentMaps[i], rwFILTERLINEAR);
+	}
 	if(gpWhiteTexture == nil){
 		gpWhiteTexture = RwTextureRead("white", nil);
 		RwTextureGetName(gpWhiteTexture)[0] = '@';
@@ -1158,8 +1076,14 @@ CVehicleModelInfo::LoadEnvironmentMaps(void)
 void
 CVehicleModelInfo::ShutdownEnvironmentMaps(void)
 {
+	int32 i;
+
+	// ignoring "initialised" as that's a PS2 thing only
 	RwTextureDestroy(gpWhiteTexture);
 	gpWhiteTexture = nil;
+	for(i = 0; i < NUM_VEHICLE_ENVMAPS; i++)
+		if(ms_pEnvironmentMaps[i])
+			RwTextureDestroy(ms_pEnvironmentMaps[i]);
 	RwFrameDestroy(pMatFxIdentityFrame);
 	pMatFxIdentityFrame = nil;
 }
@@ -1176,15 +1100,12 @@ CVehicleModelInfo::GetMaximumNumberOfPassengersFromNumberOfDoors(int id)
 	case MI_FIRETRUCK:
 		n = 2;
 		break;
-	case MI_HUNTER:
-		n = 1;
-		break;
 	default:
 		n = ((CVehicleModelInfo*)CModelInfo::GetModelInfo(id))->m_numDoors;
 	}
 
 	if(n == 0)
-		return id == MI_RCBANDIT || id == MI_PIZZABOY || id == MI_BAGGAGE ? 0 : 1;
+		return id == MI_RCBANDIT ? 0 : 1;
 
 	if(id == MI_COACH)
 		return 8;

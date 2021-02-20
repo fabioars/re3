@@ -4,21 +4,19 @@ extern RwTexture *gpCoronaTexture[9];
 
 struct CRegisteredCorona
 {
-	CVector coors;
 	uint32 id;
 	uint32 lastLOScheck;
 	RwTexture *texture;
-	float size;
-	float someAngle;
-	float drawDist;
-	float nearDist;
-	float heightAboveRoad;
 	uint8 red;
 	uint8 green;
 	uint8 blue;
 	uint8 alpha;		// alpha when fully visible
 	uint8 fadeAlpha;	// actual value used for rendering, faded
+	CVector coors;
+	float size;
+	float someAngle;
 	bool registeredThisFrame;
+	float drawDist;
 	int8 flareType;
 	int8 reflection;
 
@@ -27,11 +25,12 @@ struct CRegisteredCorona
 	uint8 firstUpdate : 1;
 	uint8 drawStreak : 1;
 	uint8 sightClear : 1;
-	uint8 useNearDist : 1;
-	uint8 renderReflection : 1;
 
-	int16 prevX[6];
-	int16 prevY[6];
+	bool renderReflection;
+	float heightAboveRoad;
+
+	float prevX[6];
+	float prevY[6];
 	uint8 prevRed[6];
 	uint8 prevGreen[6];
 	uint8 prevBlue[6];
@@ -40,7 +39,7 @@ struct CRegisteredCorona
 	void Update(void);
 };
 
-VALIDATE_SIZE(CRegisteredCorona, 0x68);
+VALIDATE_SIZE(CRegisteredCorona, 0x80);
 
 class CCoronas
 {
@@ -82,7 +81,7 @@ public:
 	static float LightsMult;
 	static float SunScreenY;
 	static float SunScreenX;
-	static int MoonSize;
+	static bool bSmallMoon;
 	static bool SunBlockedByClouds;
 	static int bChangeBrightnessImmediately;
 
@@ -91,15 +90,12 @@ public:
 	static void Update(void);
 	static void RegisterCorona(uint32 id, uint8 red, uint8 green, uint8 blue, uint8 alpha,
 		const CVector &coors, float size, float drawDist, RwTexture *tex,
-		int8 flareType, uint8 reflection, uint8 LOScheck, uint8 drawStreak, float someAngle,
-		bool useNearDist = false, float nearDist = 1.5f);
+		int8 flareType, uint8 reflection, uint8 LOScheck, uint8 drawStreak, float someAngle);
 	static void RegisterCorona(uint32 id, uint8 red, uint8 green, uint8 blue, uint8 alpha,
 		const CVector &coors, float size, float drawDist, uint8 type,
-		int8 flareType, uint8 reflection, uint8 LOScheck, uint8 drawStreak, float someAngle,
-		bool useNearDist = false, float nearDist = 1.5f);
+		int8 flareType, uint8 reflection, uint8 LOScheck, uint8 drawStreak, float someAngle);
 	static void UpdateCoronaCoors(uint32 id, const CVector &coors, float drawDist, float someAngle);
 	static void Render(void);
 	static void RenderReflections(void);
-	static void RenderSunReflection(void);
 	static void DoSunAndMoon(void);
 };

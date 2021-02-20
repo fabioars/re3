@@ -121,19 +121,10 @@ public:
 		return *str2 != '\0';
 	}
 
-	static bool faststrncmp(const char *str1, const char *str2, uint32 count)
-	{
-		for(uint32 i = 0; *str1 && i < count; str1++, str2++, i++) {
-			if (*str1 != *str2)
-				return true;
-		}
-		return false;
-	}
-
 	static bool faststricmp(const char *str1, const char *str2)
 	{
 		for (; *str1; str1++, str2++) {
-#ifndef ASCII_STRCMP
+#if MUCH_SLOWER || !defined _WIN32 || defined __MINGW32__
 			if (toupper(*str1) != toupper(*str2))
 #else
 			if (__ascii_toupper(*str1) != __ascii_toupper(*str2))
@@ -141,18 +132,6 @@ public:
 				return true;
 		}
 		return *str2 != '\0';
-	}
-
-	static bool SolveQuadratic(float a, float b, float c, float &root1, float &root2)
-	{
-		float discriminant = b * b - 4.f * a * c;
-		if (discriminant < 0.f)
-			return false;
-
-		float discriminantSqrt = Sqrt(discriminant);
-		root2 = (-b + discriminantSqrt) / (2.f * a);
-		root1 = (-b - discriminantSqrt) / (2.f * a);
-		return true;
 	}
 
 	// not too sure about all these...
@@ -166,6 +145,4 @@ public:
 		
 	static int32 GetRandomNumberInRange(int32 low, int32 high)
 		{ return low + (high - low)*(GetRandomNumber()/float(MYRAND_MAX + 1)); }
-	static void SetRandomSeed(int32 seed)
-		{ mysrand(seed); }
 };

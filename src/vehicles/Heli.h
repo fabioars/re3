@@ -21,7 +21,7 @@ enum
 	HELI_RANDOM0,
 	HELI_RANDOM1,
 	HELI_SCRIPT,
-	HELI_CATALINA,	// TODO 2 in VC
+	HELI_CATALINA,
 	NUM_HELIS
 };
 
@@ -36,6 +36,7 @@ enum
 class CHeli : public CVehicle
 {
 public:
+	// 0x288
 	RwFrame *m_aHeliNodes[NUM_HELI_NODES];
 	int8 m_heliStatus;
 	float m_fSearchLightX;
@@ -48,8 +49,6 @@ public:
 	int8 m_nHeliId;
 	int8 m_heliType;
 	int8 m_pathState;
-	int8 m_numSwat;
-	uint8 m_aSwatState[4];
 	float m_aSearchLightHistoryX[6];
 	float m_aSearchLightHistoryY[6];
 	uint32 m_nSearchLightTimer;
@@ -65,6 +64,7 @@ public:
 	static CHeli *pHelis[NUM_HELIS];
 	static int16 NumRandomHelis;
 	static uint32 TestForNewRandomHelisTimer;
+	static int16 NumScriptHelis;	// unused
 	static bool CatalinaHeliOn;
 	static bool CatalinaHasBeenShotDown;
 	static bool ScriptHeliOn;
@@ -79,18 +79,14 @@ public:
 
 	void PreRenderAlways(void);
 	CObject *SpawnFlyingComponent(int32 component);
-	CVector FindSwatPositionRelativeToHeli(int n);
-	bool SendDownSwat(void);
 
 	static void InitHelis(void);
-	static CHeli *GenerateHeli(bool catalina); // out of class in III PC and later because of SecuROM
 	static void UpdateHelis(void);
 	static void SpecialHeliPreRender(void);
 	static bool TestRocketCollision(CVector *coors);
 	static bool TestBulletCollision(CVector *line0, CVector *line1, CVector *bulletPos, int32 damage);
-	static bool TestSniperCollision(CVector *line0, CVector *line1);
 
-	static void StartCatalinaFlyBy(void); // out of class in III PC and later because of SecuROM
+	static void StartCatalinaFlyBy(void);
 	static void RemoveCatalinaHeli(void);
 	static CHeli *FindPointerToCatalinasHeli(void);
 	static void CatalinaTakeOff(void);
@@ -99,3 +95,6 @@ public:
 
 	static void ActivateHeli(bool activate);
 };
+
+VALIDATE_SIZE(CHeli, 0x33C);
+

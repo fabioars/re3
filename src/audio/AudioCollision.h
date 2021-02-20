@@ -35,4 +35,4 @@ public:
 	void AddCollisionToRequestedQueue();
 };
 
-VALIDATE_SIZE(cAudioCollisionManager, 0x354);
+VALIDATE_SIZE(cAudioCollisionManager, 852);

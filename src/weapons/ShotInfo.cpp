@@ -76,7 +76,7 @@ CShotInfo::AddShot(CEntity *sourceEntity, eWeaponType weapon, CVector startPos, 
 		gaShotInfo[slot].m_areaAffected.z += CShotInfo::ms_afRandTable[CGeneral::GetRandomNumber() % ARRAY_SIZE(ms_afRandTable)];
 	}
 	gaShotInfo[slot].m_areaAffected.Normalise();
-	if (weaponInfo->IsFlagSet(WEAPONFLAG_RAND_SPEED))
+	if (weaponInfo->m_bRandSpeed)
 		gaShotInfo[slot].m_areaAffected *= CShotInfo::ms_afRandTable[CGeneral::GetRandomNumber() % ARRAY_SIZE(ms_afRandTable)] + weaponInfo->m_fSpeed;
 	else
 		gaShotInfo[slot].m_areaAffected *= weaponInfo->m_fSpeed;
@@ -117,10 +117,10 @@ CShotInfo::Update()
 			shot.m_inUse = false;
 		}
 
-		if (weaponInfo->IsFlagSet(WEAPONFLAG_SLOWS_DOWN))
+		if (weaponInfo->m_bSlowsDown)
 			shot.m_areaAffected *= pow(0.96, CTimer::GetTimeStep()); // FRAMERATE
 
-		if (weaponInfo->IsFlagSet(WEAPONFLAG_EXPANDS))
+		if (weaponInfo->m_bExpands)
 			shot.m_radius += 0.075f * CTimer::GetTimeStep();
 
 		shot.m_startPos += CTimer::GetTimeStep() * shot.m_areaAffected;

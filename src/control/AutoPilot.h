@@ -4,7 +4,7 @@
 class CVehicle;
 struct CPathNode;
 
-enum eCarMission
+enum eCarMission : uint8
 {
 	MISSION_NONE,
 	MISSION_CRUISE,
@@ -26,16 +26,9 @@ enum eCarMission
 	MISSION_BLOCKCAR_FARAWAY,
 	MISSION_BLOCKCAR_CLOSE,
 	MISSION_BLOCKCAR_HANDBRAKESTOP,
-	MISSION_HELI_FLYTOCOORS,
-	MISSION_ATTACKPLAYER,
-	MISSION_PLANE_FLYTOCOORS,
-	MISSION_HELI_LAND,
-	MISSION_SLOWLY_DRIVE_TOWARDS_PLAYER_1,
-	MISSION_SLOWLY_DRIVE_TOWARDS_PLAYER_2,
-	MISSION_BLOCKPLAYER_FORWARDANDBACK
 };
 
-enum eCarTempAction
+enum eCarTempAction : uint8
 {
 	TEMPACT_NONE,
 	TEMPACT_WAIT,
@@ -50,7 +43,7 @@ enum eCarTempAction
 	TEMPACT_SWERVERIGHT
 };
 
-enum eCarDrivingStyle
+enum eCarDrivingStyle : uint8
 {
 	DRIVINGSTYLE_STOP_FOR_CARS,
 	DRIVINGSTYLE_SLOW_DOWN_FOR_CARS,
@@ -64,8 +57,8 @@ public:
 	int32 m_nCurrentRouteNode;
 	int32 m_nNextRouteNode;
 	int32 m_nPrevRouteNode;
-	int32 m_nTimeEnteredCurve;
-	int32 m_nTimeToSpendOnCurrentCurve;
+	uint32 m_nTimeEnteredCurve;
+	uint32 m_nTimeToSpendOnCurrentCurve;
 	uint32 m_nCurrentPathNodeInfo;
 	uint32 m_nNextPathNodeInfo;
 	uint32 m_nPreviousPathNodeInfo;
@@ -76,20 +69,17 @@ public:
 	int8 m_nNextDirection;
 	int8 m_nCurrentLane;
 	int8 m_nNextLane;
-	uint8 m_nDrivingStyle;
-	uint8 m_nCarMission;
-	uint8 m_nTempAction;
+	eCarDrivingStyle m_nDrivingStyle;
+	eCarMission m_nCarMission;
+	eCarTempAction m_nTempAction;
 	uint32 m_nTimeTempAction;
 	float m_fMaxTrafficSpeed;
 	uint8 m_nCruiseSpeed;
-	uint8 m_nCruiseSpeedMultiplierType;
-	float m_fCruiseSpeedMultiplier;
 	uint8 m_bSlowedDownBecauseOfCars : 1;
 	uint8 m_bSlowedDownBecauseOfPeds : 1;
 	uint8 m_bStayInCurrentLevel : 1;
 	uint8 m_bStayInFastLane : 1;
 	uint8 m_bIgnorePathfinding : 1;
-	uint8 m_nSwitchDistance;
 	CVector m_vecDestinationCoors;
 	CPathNode *m_aPathFindNodesInfo[NUM_PATH_NODES_IN_AUTOPILOT];
 	int16 m_nPathFindNodesCount;
@@ -119,8 +109,6 @@ public:
 		m_nTimeToStartMission = CTimer::GetTimeInMilliseconds();
 		m_nAntiReverseTimer = m_nTimeToStartMission;
 		m_bStayInFastLane = false;
-		m_nCruiseSpeedMultiplierType = 0;
-		m_fCruiseSpeedMultiplier = 1.0f;
 	}
 
 	void ModifySpeed(float);
@@ -129,8 +117,6 @@ public:
 	void Save(uint8*& buf);
 	void Load(uint8*& buf);
 #endif
-
-	float GetCruiseSpeed(void) { return m_nCruiseSpeed * m_fCruiseSpeedMultiplier; }
 
 };
 

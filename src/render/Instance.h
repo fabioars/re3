@@ -9,6 +9,6 @@ class CInstance : public CPlaceable
 public:
 	int m_modelIndex;
 public:
-	~CInstance() { }
+	~CInstance() = default;
 	void Shutdown();
 };

@@ -11,6 +11,8 @@ CSkidmark CSkidmarks::aSkidmarks[NUMSKIDMARKS];
 RwImVertexIndex SkidmarkIndexList[SKIDMARK_LENGTH * 6];
 RwIm3DVertex SkidmarkVertices[SKIDMARK_LENGTH * 2];
 RwTexture *gpSkidTex;
+RwTexture *gpSkidBloodTex;
+RwTexture *gpSkidMudTex;
 
 void
 CSkidmarks::Init(void)
@@ -20,6 +22,8 @@ CSkidmarks::Init(void)
 	slot = CTxdStore::FindTxdSlot("particle");
 	CTxdStore::SetCurrentTxd(slot);
 	gpSkidTex = RwTextureRead("particleskid", nil);
+	gpSkidBloodTex = RwTextureRead("particleskidblood", nil);
+	gpSkidMudTex = RwTextureRead("particleskidmud", nil);
 	CTxdStore::PopCurrentTxd();
 
 	for(i = 0; i < NUMSKIDMARKS; i++){
@@ -37,13 +41,30 @@ CSkidmarks::Init(void)
 		SkidmarkIndexList[i*6+5] = ix+3;
 		ix += 2;
 	}
+
+	for(i = 0; i < SKIDMARK_LENGTH; i++){
+		RwIm3DVertexSetU(&SkidmarkVertices[i*2 + 0], 0.0f);
+		RwIm3DVertexSetV(&SkidmarkVertices[i*2 + 0], i*5.01f);
+		RwIm3DVertexSetU(&SkidmarkVertices[i*2 + 1], 1.0f);
+		RwIm3DVertexSetV(&SkidmarkVertices[i*2 + 1], i*5.01f);
+	}
 }
 
 void
 CSkidmarks::Shutdown(void)
 {
 	RwTextureDestroy(gpSkidTex);
+#if GTA_VERSION >= GTA3_PC_11
 	gpSkidTex = nil;
+#endif
+	RwTextureDestroy(gpSkidBloodTex);
+#if GTA_VERSION >= GTA3_PC_11
+	gpSkidBloodTex = nil;
+#endif
+	RwTextureDestroy(gpSkidMudTex);
+#if GTA_VERSION >= GTA3_PC_11
+	gpSkidMudTex = nil;
+#endif
 }
 
 void
@@ -95,25 +116,32 @@ void
 CSkidmarks::Render(void)
 {
 	int i, j;
-
-	PUSH_RENDERGROUP("CSkidmarks::Render");
+	RwTexture *lastTex = nil;
 
 	RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)TRUE);
 	RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDSRCALPHA);
 	RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDINVSRCALPHA);
-	RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpSkidTex));
 
 	for(i = 0; i < NUMSKIDMARKS; i++){
 		if(aSkidmarks[i].m_state == 0 || aSkidmarks[i].m_last < 1)
 			continue;
 
-		CRGBA color(0, 0, 0, 255);
-		switch(aSkidmarks[i].m_type){
-		case SKIDMARK_NORMAL: color = CRGBA(0, 0, 0, 255); break;
-		case SKIDMARK_MUDDY: color = CRGBA(90, 62, 9, 255); break;
-		case SKIDMARK_SANDY: color = CRGBA(108, 108, 96, 255); break;
-		case SKIDMARK_BLOODY: color = CRGBA(132, 34, 11, 255); break;
+		if(aSkidmarks[i].m_isBloody){
+			if(lastTex != gpSkidBloodTex){
+				RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpSkidBloodTex));
+				lastTex = gpSkidBloodTex;
+			}
+		}else if(aSkidmarks[i].m_isMuddy){
+			if(lastTex != gpSkidMudTex){
+				RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpSkidMudTex));
+				lastTex = gpSkidMudTex;
+			}
+		}else{
+			if(lastTex != gpSkidTex){
+				RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(gpSkidTex));
+				lastTex = gpSkidTex;
+			}
 		}
 
 		uint32 fade, alpha;
@@ -128,20 +156,12 @@ CSkidmarks::Render(void)
 				alpha = 0;
 			alpha = alpha*fade/256;
 
-			CVector p1 = aSkidmarks[i].m_pos[j];
-			p1.x += aSkidmarks[i].m_sideX[j];
-			p1.y += aSkidmarks[i].m_sideY[j];
-			CVector p2 = aSkidmarks[i].m_pos[j];
-			p2.x -= aSkidmarks[i].m_sideX[j];
-			p2.y -= aSkidmarks[i].m_sideY[j];
-			RwIm3DVertexSetRGBA(&SkidmarkVertices[j*2+0], color.red, color.green, color.blue, alpha);
+			CVector p1 = aSkidmarks[i].m_pos[j] + aSkidmarks[i].m_side[j];
+			CVector p2 = aSkidmarks[i].m_pos[j] - aSkidmarks[i].m_side[j];
+			RwIm3DVertexSetRGBA(&SkidmarkVertices[j*2+0], 255, 255, 255, alpha);
 			RwIm3DVertexSetPos(&SkidmarkVertices[j*2+0], p1.x, p1.y, p1.z+0.1f);
-			RwIm3DVertexSetU(&SkidmarkVertices[j*2+0], 0.0f);
-			RwIm3DVertexSetV(&SkidmarkVertices[j*2+0], j*5.01f);
-			RwIm3DVertexSetRGBA(&SkidmarkVertices[j*2+1], color.red, color.green, color.blue, alpha);
+			RwIm3DVertexSetRGBA(&SkidmarkVertices[j*2+1], 255, 255, 255, alpha);
 			RwIm3DVertexSetPos(&SkidmarkVertices[j*2+1], p2.x, p2.y, p2.z+0.1f);
-			RwIm3DVertexSetU(&SkidmarkVertices[j*2+1], 1.0f);
-			RwIm3DVertexSetV(&SkidmarkVertices[j*2+1], j*5.01f);
 		}
 
 		LittleTest();
@@ -154,25 +174,10 @@ CSkidmarks::Render(void)
 	RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)FALSE);
 	RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)TRUE);
 	RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)TRUE);
-
-	POP_RENDERGROUP();
 }
 
 void
-CSkidmarks::RegisterOne(uintptr id, const CVector &pos, float fwdX, float fwdY, bool *isMuddy, bool *isBloody)
-{
-	eSkidmarkType type;
-	if(*isBloody)
-		type = SKIDMARK_BLOODY;
-	else if(*isMuddy)
-		type = SKIDMARK_MUDDY;
-	else
-		type = SKIDMARK_NORMAL;
-	RegisterOne(id, pos, fwdX, fwdY, type, isBloody);
-}
-
-void
-CSkidmarks::RegisterOne(uintptr id, const CVector &pos, float fwdX, float fwdY, eSkidmarkType type, bool *isBloody)
+CSkidmarks::RegisterOne(uintptr id, CVector pos, float fwdX, float fwdY, bool *isMuddy, bool *isBloody)
 {
 	int i;
 	CVector2D fwd(fwdX, fwdY);
@@ -188,7 +193,7 @@ CSkidmarks::RegisterOne(uintptr id, const CVector &pos, float fwdX, float fwdY, 
 	if(i < NUMSKIDMARKS){
 		// Continue this one
 
-		if((aSkidmarks[i].m_type==SKIDMARK_BLOODY) != *isBloody){
+		if(aSkidmarks[i].m_isBloody != *isBloody){
 			// Blood-status changed, end this one
 			aSkidmarks[i].m_state = 2;
 			aSkidmarks[i].m_fadeStart = CTimer::GetTimeInMilliseconds() + 10000;
@@ -220,16 +225,13 @@ CSkidmarks::RegisterOne(uintptr id, const CVector &pos, float fwdX, float fwdY, 
 		CVector2D right(aSkidmarks[i].m_pos[aSkidmarks[i].m_last].y - aSkidmarks[i].m_pos[aSkidmarks[i].m_last - 1].y,
 		                aSkidmarks[i].m_pos[aSkidmarks[i].m_last - 1].x - aSkidmarks[i].m_pos[aSkidmarks[i].m_last].x);
 
-		right.Normalise();
-		fwd.Normalise();
+		right.NormaliseSafe();
+		fwd.NormaliseSafe();
 		float turn = DotProduct2D(fwd, right);
 		turn = Abs(turn) + 1.0f;
-		aSkidmarks[i].m_sideX[aSkidmarks[i].m_last] = right.x * turn * 0.125f;
-		aSkidmarks[i].m_sideY[aSkidmarks[i].m_last] = right.y * turn * 0.125f;
-		if(aSkidmarks[i].m_last == 1){
-			aSkidmarks[i].m_sideX[0] = aSkidmarks[i].m_sideX[1];
-			aSkidmarks[i].m_sideY[0] = aSkidmarks[i].m_sideY[1];
-		}
+		aSkidmarks[i].m_side[aSkidmarks[i].m_last] = CVector(right.x, right.y, 0.0f) * turn * 0.125f;
+		if(aSkidmarks[i].m_last == 1)
+			aSkidmarks[i].m_side[0] = aSkidmarks[i].m_side[1];
 
 		if(aSkidmarks[i].m_last > 8)
 			*isBloody = false;	// stop blood marks after 8
@@ -245,15 +247,12 @@ CSkidmarks::RegisterOne(uintptr id, const CVector &pos, float fwdX, float fwdY, 
 		aSkidmarks[i].m_state = 1;
 		aSkidmarks[i].m_id = id;
 		aSkidmarks[i].m_pos[0] = pos;
-		aSkidmarks[i].m_sideX[0] = 0.0f;
-		aSkidmarks[i].m_sideY[0] = 0.0f;
+		aSkidmarks[i].m_side[0] = CVector(0.0f, 0.0f, 0.0f);
 		aSkidmarks[i].m_wasUpdated = true;
 		aSkidmarks[i].m_last = 0;
 		aSkidmarks[i].m_lastUpdate = CTimer::GetTimeInMilliseconds() - 1000;
-		if(*isBloody)
-			aSkidmarks[i].m_type = SKIDMARK_BLOODY;
-		else
-			aSkidmarks[i].m_type = type;
+		aSkidmarks[i].m_isBloody = *isBloody;
+		aSkidmarks[i].m_isMuddy = *isMuddy;
 	}else
 		*isBloody = false;	// stop blood marks if no space
 }
